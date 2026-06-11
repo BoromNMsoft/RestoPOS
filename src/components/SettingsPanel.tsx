@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, UserCheck, UserX, Monitor, ShieldAlert, X, Check, User, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { createCashier, updateCashier, deleteCashier } from '../lib/manageUser'
 
 interface Cashier {
   id: string;
@@ -56,6 +57,13 @@ export default function SettingsPanel() {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
 
+  const [editingCashier, setEditingCashier] = useState<Cashier | null>(null)
+  //const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
+
   const handleEditStation = async () => {
     if (!editingStation || !editName) return;
     await supabase.from('pos_stations')
@@ -67,6 +75,25 @@ export default function SettingsPanel() {
     setEditingStation(null);
     fetchAll();
   };
+
+  const handleEditCashier = async () => {
+    if (!editingCashier) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      await updateCashier(editingCashier.id, {
+        full_name: editName,
+        email: editEmail,
+        ...(editPassword && { password: editPassword }),
+      })
+      setEditingCashier(null)
+      fetchAll()
+    } catch (e: any) {
+      setEditError(e?.message ?? 'Erreur lors de la modification.')
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -88,45 +115,36 @@ export default function SettingsPanel() {
 
   // ── Caissiers ──────────────────────────────────────────────
 
+  // ── handleAddCashier ──
   const handleAddCashier = async () => {
     if (!newEmail || !newName || !newPassword) {
-      setSaveError('Tous les champs sont obligatoires.');
-      return;
+      setSaveError('Tous les champs sont obligatoires.')
+      return
     }
-    setSaving(true);
-    setSaveError(null);
+    setSaving(true)
+    setSaveError(null)
     try {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: newEmail,
-        password: newPassword,
-        user_metadata: { full_name: newName, role: 'cashier' },
-        email_confirm: true,
-      });
-      if (error) throw error;
-
-      // Insère le profil manuellement
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: newEmail,
-        full_name: newName,
-        role: 'cashier',
-      });
-
-      setShowAddCashier(false);
-      setNewEmail(''); setNewName(''); setNewPassword('');
-      fetchAll();
+      await createCashier(newEmail, newPassword, newName)
+      setShowAddCashier(false)
+      setNewEmail(''); setNewName(''); setNewPassword('')
+      fetchAll()
     } catch (e: any) {
-      setSaveError(e?.message ?? 'Erreur lors de la création du compte.');
+      setSaveError(e?.message ?? 'Erreur lors de la création.')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
+  // ── handleDeleteCashier ──
   const handleDeleteCashier = async (id: string) => {
-    if (!confirm('Supprimer ce caissier ?')) return;
-    await supabase.from('profiles').delete().eq('id', id);
-    fetchAll();
-  };
+    if (!confirm('Supprimer ce caissier ?')) return
+    try {
+      await deleteCashier(id)
+      fetchAll()
+    } catch (e: any) {
+      console.error(e)
+    }
+  }
 
   // ── Stations ───────────────────────────────────────────────
 
@@ -258,6 +276,18 @@ export default function SettingsPanel() {
                     >
                       <Monitor size={12} />
                       {assignment ? getStationName(assignment.station_id) : 'Non assigné'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingCashier(cashier)
+                        setEditName(cashier.full_name)
+                        setEditEmail(cashier.email)
+                        setEditPassword('')
+                        setEditError(null)
+                      }}
+                      className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500 transition-colors"
+                    >
+                      <Pencil size={16} />
                     </button>
                     <button
                       onClick={() => handleDeleteCashier(cashier.id)}
@@ -488,6 +518,71 @@ export default function SettingsPanel() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingCashier && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Modifier le caissier</h2>
+              <button onClick={() => setEditingCashier(null)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nom complet</label>
+                <input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Nouveau mot de passe <span className="text-gray-400 normal-case font-normal">(laisser vide pour ne pas changer)</span>
+                </label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={e => setEditPassword(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+              {editError && (
+                <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {editError}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setEditingCashier(null)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleEditCashier}
+                disabled={editSaving || !editName || !editEmail}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              >
+                <Check size={16} />
+                {editSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
             </div>
           </div>
         </div>
