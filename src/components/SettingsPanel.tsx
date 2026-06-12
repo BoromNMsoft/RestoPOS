@@ -506,17 +506,32 @@ export default function SettingsPanel() {
                 >
                   <UserX size={16} /> Non assigné
                 </button>
-                {stations.filter(s => s.is_active).map(station => (
-                  <button
-                    key={station.id}
-                    onClick={() => handleAssign(station.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 transition-colors"
-                  >
-                    <Monitor size={16} className="text-amber-500" />
-                    {station.name}
-                    {station.description && <span className="text-gray-400 text-xs ml-auto">{station.description}</span>}
-                  </button>
-                ))}
+                {stations.filter(s => s.is_active).map(station => {
+                  const occupiedBy = cashiers.find(c =>
+                    assignments.find(a => a.station_id === station.id && a.cashier_id === c.id)
+                  );
+                  const isOccupied = occupiedBy && occupiedBy.id !== assigningCashier.id;
+
+                  return (
+                    <button
+                      key={station.id}
+                      onClick={() => !isOccupied && handleAssign(station.id)}
+                      disabled={isOccupied}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm transition-colors ${
+                        isOccupied
+                          ? 'border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300'
+                      }`}
+                    >
+                      <Monitor size={16} className={isOccupied ? 'text-gray-300 dark:text-gray-600' : 'text-amber-500'} />
+                      <span className="flex-1 text-left">{station.name}</span>
+                      {isOccupied
+                        ? <span className="text-xs text-gray-400">Occupé par {occupiedBy.full_name}</span>
+                        : station.description && <span className="text-gray-400 text-xs">{station.description}</span>
+                      }
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

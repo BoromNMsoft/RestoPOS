@@ -1,4 +1,4 @@
-import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X, Monitor, User } from 'lucide-react';
 import { Sale } from '../types';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
@@ -11,20 +11,24 @@ export default function Dashboard({ sales }: DashboardProps) {
   const { authUser } = useAuth();
   const isAdmin = authUser?.role === 'admin';
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [selectedStation, setSelectedStation] = useState<string>('all');
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
     const now = new Date();
     return sales.filter(s => {
       const d = new Date(s.created_at);
-      if (period === 'today') return d.toDateString() === now.toDateString();
-      if (period === 'week') {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return d >= weekAgo;
-      }
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      return d >= monthAgo;
+
+      let matchPeriod = false;
+      if (period === 'today') matchPeriod = d.toDateString() === now.toDateString();
+      else if (period === 'week') matchPeriod = d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      else matchPeriod = d >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const matchStation = selectedStation === 'all' || s.station_id === selectedStation;
+
+      return matchPeriod && matchStation;
     });
-  }, [sales, period]);
+  }, [sales, period, selectedStation]);
 
   const stats = useMemo(() => {
     const totalRevenue = filteredSales.reduce((s, sale) => s + sale.total, 0);
@@ -67,31 +71,78 @@ export default function Dashboard({ sales }: DashboardProps) {
     );
   }
 
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  
+
+  const availableStations = useMemo(() => {
+    const map = new Map<string, string>();
+    sales.forEach(s => {
+      if (s.station_id && s.station_name) {
+        map.set(s.station_id, s.station_name);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [sales]);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto p-6">
       <div className="max-w-6xl mx-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Vue d'ensemble de vos ventes</p>
           </div>
-          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-            {(['today', 'week', 'month'] as const).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  period === p
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                {periodLabels[p]}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+
+            {/* Filtre par caisse */}
+            {availableStations.length > 0 && (
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+                <button
+                  onClick={() => setSelectedStation('all')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    selectedStation === 'all'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  <Monitor size={12} />
+                  Toutes
+                </button>
+                {availableStations.map(station => (
+                  <button
+                    key={station.id}
+                    onClick={() => setSelectedStation(station.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      selectedStation === station.id
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                    }`}
+                  >
+                    <Monitor size={12} />
+                    {station.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Filtre par période */}
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+              {(['today', 'week', 'month'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    period === p
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  {periodLabels[p]}
+                </button>
+              ))}
+            </div>
+
           </div>
         </div>
 
@@ -231,6 +282,24 @@ export default function Dashboard({ sales }: DashboardProps) {
                   <X size={18} />
                 </button>
               </div>
+              
+              {/* Caissier & Caisse */}
+              {(selectedSale.cashier_name || selectedSale.station_name) && (
+                <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 text-xs">
+                  {selectedSale.cashier_name && (
+                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                      <User size={12} />
+                      <span className="font-semibold">{selectedSale.cashier_name}</span>
+                    </div>
+                  )}
+                  {selectedSale.station_name && (
+                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                      <Monitor size={12} />
+                      <span className="font-semibold">{selectedSale.station_name}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Articles */}
               <div className="px-6 py-4">

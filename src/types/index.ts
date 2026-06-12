@@ -31,6 +31,10 @@ export interface Sale {
   change_given: number;
   payment_method: string;
   created_at: string;
+  cashier_id?: string;
+  cashier_name?: string;
+  station_id?: string;
+  station_name?: string;
   items?: SaleItem[];
 }
 

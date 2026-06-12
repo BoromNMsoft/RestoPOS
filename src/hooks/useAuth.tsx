@@ -4,10 +4,14 @@ import { Session, User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'cashier';
 
+
 export interface AuthUser {
   user: User;
   role: UserRole;
   fullName: string;
+  stationName?: string;    // ← ajouté
+  stationId?: string;      // ← ajouté
+    stationActive?: boolean;  // ← ajouté
 }
 
 interface AuthContextType {
@@ -43,9 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('role, full_name')
       .eq('id', userId)
       .single();
-
     if (error || !data) return null;
-    return { role: data.role as UserRole, fullName: data.full_name };
+
+    // Récupère la station assignée
+    const { data: assignment } = await supabase
+      .from('cashier_assignments')
+      .select('station_id, pos_stations(name, is_active)')
+      .eq('cashier_id', userId)
+      .single();
+
+    return {
+      role: data.role as UserRole,
+      fullName: data.full_name,
+      stationId: assignment?.station_id ?? null,
+      stationName: (assignment?.pos_stations as any)?.name ?? null,
+      stationActive: (assignment?.pos_stations as any)?.is_active ?? null,
+    };
   }, []);
 
   const loadAuthUser = useCallback(
@@ -55,7 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensureProfile();
         profile = await fetchProfile(s.user.id);
       }
-      return { user: s.user, ...(profile ?? profileFromUser(s.user)) };
+      return {
+        user: s.user,
+        role: profile?.role ?? 'cashier',
+        fullName: profile?.fullName ?? s.user.email ?? 'Utilisateur',
+        stationId: profile?.stationId ?? undefined,
+        stationName: profile?.stationName ?? undefined,
+        stationActive: profile?.stationActive ?? undefined,  // ← ajouté
+      };
     },
     [ensureProfile, fetchProfile]
   );
@@ -101,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthUser(await loadAuthUser(data.session));
       setSession(data.session);
-      return { error: null };
+      return { error: null }; 
     },
     [loadAuthUser]
   );

@@ -1,4 +1,4 @@
-import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor } from 'lucide-react';
 import { ViewType } from '../types';
 import { useAuth, UserRole } from '../hooks/useAuth';
 
@@ -68,7 +68,17 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
             <Shield size={12} />
             {roleLabel}
           </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400 max-w-[100px] truncate">{authUser?.fullName}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
+            {authUser?.fullName}
+          </span>
+
+          {/* ← Ajoute ce badge station */}
+          {authUser?.stationName && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">
+              <Monitor size={12} />
+              {authUser.stationName}
+            </div>
+          )}
         </div>
 
         <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />

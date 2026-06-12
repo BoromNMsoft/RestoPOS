@@ -11,9 +11,10 @@ import Dashboard from './components/Dashboard';
 import ProductManagement from './components/ProductManagement';
 import LoginScreen from './components/LoginScreen';
 import SettingsPanel from './components/SettingsPanel';
+import { ShieldAlert, LogOut } from 'lucide-react';
 
 function AppContent() {
-  const { authUser, loading: authLoading } = useAuth();
+  const { authUser, loading: authLoading, signOut } = useAuth();
 
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -112,6 +113,10 @@ function AppContent() {
           amount_received: amountReceived,
           change_given: changeGiven,
           payment_method: 'cash',
+          cashier_id: authUser?.user.id,
+          cashier_name: authUser?.fullName,
+          station_id: authUser?.stationId,
+          station_name: authUser?.stationName,
         })
         .select()
         .single();
@@ -130,7 +135,6 @@ function AppContent() {
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
       if (itemsError) throw itemsError;
 
-      // Update stock
       for (const item of cart) {
         await supabase
           .from('products')
@@ -149,7 +153,7 @@ function AppContent() {
     } catch (e) {
       console.error('Checkout error:', e);
     }
-  }, [cart, cartTotal, fetchData]);
+  }, [cart, cartTotal, authUser, fetchData]);
 
   if (authLoading) {
     return (
@@ -166,6 +170,36 @@ function AppContent() {
     return (
       <div className={darkMode ? 'dark' : ''}>
         <LoginScreen />
+      </div>
+    );
+  }
+
+  // ← Ajoute ce bloc juste après
+  if (authUser.role === 'cashier' && (!authUser.stationId || authUser.stationActive === false)) {
+    const isInactive = authUser.stationId && authUser.stationActive === false;
+    return (
+      <div className={`h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}>
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+            <ShieldAlert size={32} className="text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {isInactive ? 'Poste inactif' : 'Aucun poste assigné'}
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+            {isInactive
+              ? `Le poste "${authUser.stationName}" est actuellement inactif. Merci de contacter l'administrateur.`
+              : "Vous n'êtes assigné à aucune caisse. Merci de contacter l'administrateur."
+            }
+          </p>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold mx-auto hover:bg-gray-800 transition-colors"
+          >
+            <LogOut size={16} />
+            Se déconnecter
+          </button>
+        </div>
       </div>
     );
   }
