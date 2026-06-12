@@ -1,4 +1,4 @@
-import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor, History, Lock } from 'lucide-react';
 import { ViewType } from '../types';
 import { useAuth, UserRole } from '../hooks/useAuth';
 
@@ -8,20 +8,26 @@ interface HeaderProps {
   darkMode: boolean;
   onToggleDark: () => void;
   cartCount: number;
+  onSignOut: () => void; // ← ajoute
 }
 
-export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount }: HeaderProps) {
-  const { authUser, signOut } = useAuth();
+export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount, onSignOut }: HeaderProps) {  const { authUser} = useAuth();
   const role = authUser?.role as UserRole | null;
 
-  const navItems: { view: ViewType; icon: React.ReactNode; label: string; adminOnly?: boolean }[] = [
+  const navItems: { view: ViewType; icon: React.ReactNode; label: string; adminOnly?: boolean; cashierOnly?: boolean }[] = [
     { view: 'pos',       icon: <ShoppingCart size={18} />,    label: 'Caisse' },
-    { view: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', adminOnly: true },
-    { view: 'products',  icon: <Package size={18} />,         label: 'Produits',  adminOnly: true },
-    { view: 'settings',  icon: <Settings size={18} />,        label: 'Paramètres',adminOnly: true },
+    { view: 'history',   icon: <History size={18} />,         label: 'Mes ventes',  cashierOnly: true },
+    { view: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard',   adminOnly: true },
+    { view: 'products',  icon: <Package size={18} />,         label: 'Produits',    adminOnly: true },
+    { view: 'settings',  icon: <Settings size={18} />,        label: 'Paramètres',  adminOnly: true },
+    { view: 'closure', icon: <Lock size={18} />, label: 'Clôture', adminOnly: true },
   ];
 
-  const visibleNavItems = navItems.filter(item => !item.adminOnly || role === 'admin');
+  const visibleNavItems = navItems.filter(item => {
+    if (item.adminOnly) return role === 'admin';
+    if (item.cashierOnly) return role === 'cashier';
+    return true;
+  });
 
   const roleLabel = role === 'admin' ? 'Admin' : 'Caissier';
   const roleColor = role === 'admin'
@@ -62,7 +68,6 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
 
         <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2" />
 
-        {/* User info */}
         <div className="flex items-center gap-2">
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${roleColor}`}>
             <Shield size={12} />
@@ -71,8 +76,6 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
           <span className="text-xs text-gray-500 dark:text-gray-400 max-w-[100px] truncate">
             {authUser?.fullName}
           </span>
-
-          {/* ← Ajoute ce badge station */}
           {authUser?.stationName && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">
               <Monitor size={12} />
@@ -91,7 +94,7 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
         </button>
 
         <button
-          onClick={signOut}
+          onClick={onSignOut}
           className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
           title="Déconnexion"
         >

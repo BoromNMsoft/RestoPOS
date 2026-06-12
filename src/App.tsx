@@ -12,9 +12,18 @@ import ProductManagement from './components/ProductManagement';
 import LoginScreen from './components/LoginScreen';
 import SettingsPanel from './components/SettingsPanel';
 import { ShieldAlert, LogOut } from 'lucide-react';
+import CashierHistory from './components/CashierHistory';
+import CashClosure from './components/CashClosure';
+
+
 
 function AppContent() {
-  const { authUser, loading: authLoading, signOut } = useAuth();
+  const { authUser, loading: authLoading, signOut: authSignOut } = useAuth();
+
+  const signOut = useCallback(async () => {
+    setCurrentView('pos'); // ← reset la vue avant déconnexion
+    await authSignOut();
+  }, [authSignOut]);
 
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -31,7 +40,7 @@ function AppContent() {
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
 
   // If cashier, force POS view
-  const effectiveView = authUser?.role === 'cashier' && currentView !== 'pos' ? 'pos' : currentView;
+  const effectiveView = authUser?.role === 'cashier' && !['pos', 'history'].includes(currentView) ? 'pos' : currentView;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -73,6 +82,11 @@ function AppContent() {
   const addToCart = useCallback((product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
+      const currentQty = existing?.quantity ?? 0;
+
+      // Bloque si on atteint le stock max
+      if (currentQty >= product.stock) return prev;
+
       if (existing) {
         return prev.map(item =>
           item.product.id === product.id
@@ -87,11 +101,12 @@ function AppContent() {
   const updateQuantity = useCallback((productId: string, delta: number) => {
     setCart(prev => {
       return prev
-        .map(item =>
-          item.product.id === productId
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item
-        )
+        .map(item => {
+          if (item.product.id !== productId) return item;
+          // Bloque si on dépasse le stock
+          if (delta > 0 && item.quantity >= item.product.stock) return item;
+          return { ...item, quantity: Math.max(0, item.quantity + delta) };
+        })
         .filter(item => item.quantity > 0);
     });
   }, []);
@@ -102,7 +117,7 @@ function AppContent() {
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  const handleCheckout = useCallback(async (amountReceived: number, changeGiven: number) => {
+  const handleCheckout = useCallback(async (amountReceived: number, changeGiven: number, method: 'cash' | 'card' = 'cash', note: string = '') => {
     if (cart.length === 0) return;
 
     try {
@@ -112,7 +127,8 @@ function AppContent() {
           total: cartTotal,
           amount_received: amountReceived,
           change_given: changeGiven,
-          payment_method: 'cash',
+          payment_method: method,  // ← utilise method
+          note: note || null,       // ← ajoute la note
           cashier_id: authUser?.user.id,
           cashier_name: authUser?.fullName,
           station_id: authUser?.stationId,
@@ -212,6 +228,7 @@ function AppContent() {
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+        onSignOut={signOut} 
       />
 
       {effectiveView === 'pos' && (
@@ -245,6 +262,12 @@ function AppContent() {
         </div>
       )}
 
+      {effectiveView === 'history' && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CashierHistory />
+        </div>
+      )}
+
       {effectiveView === 'dashboard' && (
         <div className="flex-1 min-h-0 overflow-hidden">
           <Dashboard sales={sales} />
@@ -259,6 +282,12 @@ function AppContent() {
       {effectiveView === 'settings' && (
         <div className="flex-1 min-h-0 overflow-hidden">
           <SettingsPanel />
+        </div>
+      )}
+
+      {effectiveView === 'closure' && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CashClosure />
         </div>
       )}
 

@@ -21,9 +21,10 @@ export default function ProductGrid({ products, categories, cart, onAddToCart, l
   }, [cart]);
 
   const filtered = useMemo(() => {
-    return products.filter(p => {
+  return products.filter(p => {
       const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
       const matchCategory = !activeCategory || p.category_id === activeCategory;
+      // Affiche uniquement les produits disponibles (épuisés inclus, indisponibles exclus)
       return matchSearch && matchCategory && p.is_available;
     });
   }, [products, search, activeCategory]);
@@ -87,18 +88,26 @@ export default function ProductGrid({ products, categories, cart, onAddToCart, l
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filtered.map(product => {
             const qty = cartMap.get(product.id) || 0;
+            const outOfStock = product.stock === 0;
+            const maxReached = qty >= product.stock; // ← ajouté
+
             return (
               <button
                 key={product.id}
-                onClick={() => onAddToCart(product)}
-                className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200 text-left active:scale-[0.97]"
+                onClick={() => !outOfStock && onAddToCart(product)}
+                disabled={outOfStock}
+                className={`group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border transition-all duration-200 text-left ${
+                  outOfStock
+                    ? 'border-gray-100 dark:border-gray-700 opacity-50 cursor-not-allowed'
+                    : 'border-gray-100 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-500 hover:shadow-lg hover:shadow-amber-500/10 active:scale-[0.97]'
+                }`}
               >
-                <div className="aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                <div className="aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700 relative">
                   {product.image_url ? (
                     <img
                       src={product.image_url}
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`w-full h-full object-cover transition-transform duration-300 ${!outOfStock && 'group-hover:scale-105'}`}
                       loading="lazy"
                     />
                   ) : (
@@ -106,20 +115,31 @@ export default function ProductGrid({ products, categories, cart, onAddToCart, l
                       <Plus size={24} className="text-gray-300 dark:text-gray-600" />
                     </div>
                   )}
+
+                  {/* Overlay épuisé OU max atteint */}
+                  {(outOfStock || maxReached) && (
+                    <div className="absolute inset-0 bg-gray-900/60 flex items-center justify-center">
+                      <span className="text-white text-xs font-bold tracking-wider uppercase px-2 py-1 rounded-lg bg-gray-900/80">
+                        {outOfStock ? 'Épuisé' : 'Max atteint'}
+                      </span>
+                    </div>
+                  )}
                 </div>
+
                 <div className="p-3">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-base font-bold text-amber-600 dark:text-amber-400">{product.price.toFixed(2)} €</span>
-                    {product.stock > 0 && product.stock < 10 && (
+                    <span className={`text-base font-bold ${outOfStock ? 'text-gray-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                      {product.price.toFixed(2)} €
+                    </span>
+                    {!outOfStock && product.stock > 0 && product.stock < 10 && (
                       <span className="text-[10px] text-orange-500 font-medium">{product.stock} rest.</span>
                     )}
                   </div>
                 </div>
 
-                {/* Quantity badge */}
                 {qty > 0 && (
-                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center shadow-lg animate-bounce-in">
+                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
                     {qty}
                   </div>
                 )}
@@ -138,3 +158,4 @@ export default function ProductGrid({ products, categories, cart, onAddToCart, l
     </div>
   );
 }
+    

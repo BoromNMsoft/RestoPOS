@@ -36,6 +36,7 @@ export interface Sale {
   station_id?: string;
   station_name?: string;
   items?: SaleItem[];
+  note?: string;
 }
 
 export interface SaleItem {
@@ -48,4 +49,4 @@ export interface SaleItem {
   subtotal: number;
 }
 
-export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings';
+export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure';
