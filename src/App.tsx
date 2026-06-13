@@ -77,6 +77,29 @@ function AppContent() {
     }
   }, [authUser, fetchData]);
 
+  useEffect(() => {
+  if (!authUser) return;
+
+    // Écoute les nouvelles ventes en temps réel
+    const channel = supabase
+      .channel('realtime-sales')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sales' },
+        () => fetchData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => fetchData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authUser, fetchData]);
+
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
 
   const addToCart = useCallback((product: Product) => {

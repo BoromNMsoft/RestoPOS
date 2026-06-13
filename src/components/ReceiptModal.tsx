@@ -140,6 +140,15 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
             color: #16a34a;
             font-weight: 700;
           }
+          
+          ${sale.note ? `
+            <hr class="sep-dash" />
+            <div style="margin: 8px 0;">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px;">Note</div>
+              <div style="font-size: 12px; color: #111;">${sale.note}</div>
+            </div>
+          ` : ''}
+                    
           .badge-payment {
             display: inline-block;
             background: #f3f4f6;
@@ -221,6 +230,14 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
         </div>
   
         <hr class="sep-dash" />
+
+        ${sale.note ? `
+          <div style="margin: 8px 0 12px 0;">
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px;">Note</div>
+            <div style="font-size: 12px; color: #111; font-style: italic;">${sale.note}</div>
+          </div>
+          <hr class="sep-dash" />
+        ` : ''}
   
         <div class="footer">
           <div class="thanks">Merci !</div>
@@ -299,6 +316,14 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
           </div>
 
           <div className="border-t border-dashed border-gray-300 dark:border-gray-700 my-3" />
+          {/* Note */}
+          {sale.note && (
+            <div className="mb-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Note</p>
+              <p className="text-sm text-gray-900 dark:text-white italic">{sale.note}</p>
+              <div className="border-t border-dashed border-gray-300 dark:border-gray-700 mt-3" />
+            </div>
+          )}
           <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">Merci de votre visite !</p>
         </div>
 
