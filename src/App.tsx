@@ -22,6 +22,7 @@ function AppContent() {
 
   const signOut = useCallback(async () => {
     setCurrentView('pos'); // ← reset la vue avant déconnexion
+    localStorage.removeItem('currentView'); // ← ajoute
     await authSignOut();
   }, [authSignOut]);
 
@@ -31,13 +32,22 @@ function AppContent() {
     }
     return false;
   });
-  const [currentView, setCurrentView] = useState<ViewType>('pos');
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    const saved = localStorage.getItem('currentView') as ViewType;
+    return saved ?? 'pos';
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+
+  // Ajoute un wrapper pour setter
+  const handleViewChange = useCallback((view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('currentView', view);
+  }, []);
 
   // If cashier, force POS view
   const effectiveView = authUser?.role === 'cashier' && !['pos', 'history'].includes(currentView) ? 'pos' : currentView;
@@ -46,18 +56,22 @@ function AppContent() {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  const [stations, setStations] = useState<any[]>([]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, prodRes, salesRes] = await Promise.all([
+      const [catRes, prodRes, salesRes, stationsRes] = await Promise.all([
         supabase.from('categories').select('*').order('sort_order'),
         supabase.from('products').select('*').order('name'),
         supabase.from('sales').select('*, items:sale_items(*)').order('created_at', { ascending: false }).limit(100),
+        supabase.from('pos_stations').select('*, cashier_assignments(cashier_id, profiles(full_name))').order('created_at'),
       ]);
 
       if (catRes.data) setCategories(catRes.data);
       if (prodRes.data) setProducts(prodRes.data);
       if (salesRes.data) setSales(salesRes.data as Sale[]);
+      if (stationsRes.data) setStations(stationsRes.data);
     } catch (e) {
       console.error('Fetch error:', e);
     } finally {
@@ -74,6 +88,7 @@ function AppContent() {
       setCart([]);
       setSales([]);
       setLoading(false);
+      setStations([]);
     }
   }, [authUser, fetchData]);
 
@@ -247,7 +262,7 @@ function AppContent() {
     <div className={`h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-200 ${darkMode ? 'dark' : ''}`}>
       <Header
         currentView={effectiveView}
-        onViewChange={setCurrentView}
+        onViewChange={handleViewChange}  // ← ici
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
@@ -293,7 +308,7 @@ function AppContent() {
 
       {effectiveView === 'dashboard' && (
         <div className="flex-1 min-h-0 overflow-hidden">
-          <Dashboard sales={sales} />
+          <Dashboard sales={sales} stations={stations} />
         </div>
       )}
       {effectiveView === 'products' && (

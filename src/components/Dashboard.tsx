@@ -5,14 +5,26 @@ import { useAuth } from '../hooks/useAuth';
 
 interface DashboardProps {
   sales: Sale[];
+  stations: StationInfo[];
 }
 
-export default function Dashboard({ sales }: DashboardProps) {
+interface StationInfo {
+  id: string;
+  name: string;
+  is_active: boolean;
+  cashier_assignments: {
+    cashier_id: string;
+    profiles: { full_name: string } | null;
+  }[];
+}
+
+export default function Dashboard({ sales, stations}: DashboardProps) {
   const { authUser } = useAuth();
   const isAdmin = authUser?.role === 'admin';
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [selectedStation, setSelectedStation] = useState<string>('all');
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [stationPanelOpen, setStationPanelOpen] = useState(false);
 
   const filteredSales = useMemo(() => {
     const now = new Date();
@@ -92,11 +104,20 @@ export default function Dashboard({ sales }: DashboardProps) {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+              
               {/* Badge Live */}
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Live</span>
-              </div>
+              {(() => {
+                const activeCaisses = stations.filter(s => s.is_active).length;
+                if (activeCaisses === 0) return null;
+                return (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      Live · {activeCaisses} caisse{activeCaisses > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Vue d'ensemble de vos ventes</p>
           </div>
@@ -106,30 +127,39 @@ export default function Dashboard({ sales }: DashboardProps) {
             {availableStations.length > 0 && (
               <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                 <button
-                  onClick={() => setSelectedStation('all')}
+                  onClick={() => { setSelectedStation('all'); setStationPanelOpen(false); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     selectedStation === 'all'
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
                 >
-                  <Monitor size={12} />
-                  Toutes
+                  <Monitor size={12} /> Toutes
                 </button>
-                {availableStations.map(station => (
-                  <button
-                    key={station.id}
-                    onClick={() => setSelectedStation(station.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      selectedStation === station.id
-                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                    }`}
-                  >
-                    <Monitor size={12} />
-                    {station.name}
-                  </button>
-                ))}
+                {availableStations.map(station => {
+                  const stationInfo = stations.find(s => s.id === station.id);
+                  const isActive = stationInfo?.is_active ?? false;
+                  const cashierName = stationInfo?.cashier_assignments?.[0]?.profiles?.full_name ?? null;
+
+                  return (
+                    <button
+                      key={station.id}
+                      onClick={() => {
+                        setSelectedStation(station.id);
+                        setStationPanelOpen(true);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        selectedStation === station.id
+                          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                      }`}
+                      title={cashierName ? `Caissier : ${cashierName}` : 'Aucun caissier assigné'}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                      {station.name}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -152,6 +182,54 @@ export default function Dashboard({ sales }: DashboardProps) {
 
           </div>
         </div>
+
+        {/* Panneau état caisse sélectionnée */}
+        {selectedStation !== 'all' && stationPanelOpen && (() => {
+          const stationInfo = stations.find(s => s.id === selectedStation);
+          if (!stationInfo) return null;
+          const cashierName = stationInfo.cashier_assignments?.[0]?.profiles?.full_name ?? null;
+          const stationSales = filteredSales.filter(s => s.station_id === selectedStation);
+          const stationTotal = stationSales.reduce((s, sale) => s + sale.total, 0);
+
+          return (
+            <div className="mb-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                stationInfo.is_active ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-red-50 dark:bg-red-900/20'
+              }`}>
+                <Monitor size={22} className={stationInfo.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{stationInfo.name}</p>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                    stationInfo.is_active
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-500'
+                  }`}>
+                    {stationInfo.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {cashierName
+                    ? <span>Caissier : <span className="font-semibold text-gray-900 dark:text-white">{cashierName}</span></span>
+                    : 'Aucun caissier assigné'
+                  }
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Encaissé</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{stationTotal.toFixed(2)} €</p>
+                <p className="text-xs text-gray-400">{stationSales.length} transaction(s)</p>
+              </div>
+              <button
+                onClick={() => setStationPanelOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
