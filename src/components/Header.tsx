@@ -19,8 +19,9 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
     { view: 'history',   icon: <History size={18} />,         label: 'Mes ventes',  cashierOnly: true },
     { view: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard',   adminOnly: true },
     { view: 'products',  icon: <Package size={18} />,         label: 'Produits',    adminOnly: true },
-    { view: 'settings',  icon: <Settings size={18} />,        label: 'Paramètres',  adminOnly: true },
     { view: 'closure', icon: <Lock size={18} />, label: 'Clôture', adminOnly: true },
+    { view: 'settings',  icon: <Settings size={18} />,        label: 'Paramètres',  adminOnly: true },
+
   ];
 
   const visibleNavItems = navItems.filter(item => {

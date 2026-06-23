@@ -1,32 +1,38 @@
 import { useState } from 'react';
-import { UtensilsCrossed, Eye, EyeOff, LogIn } from 'lucide-react';
+import { UtensilsCrossed, Eye, EyeOff, LogIn, Phone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const handlePhoneChange = (value: string) => {
+    // Garde uniquement les chiffres
+    const digitsOnly = value.replace(/\D/g, '');
+    setPhone(digitsOnly);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: err } = await signIn(email, password);
+    const { error: err } = await signIn(phone, password);
     setLoading(false);
     if (err) {
       if (err.includes('Invalid login credentials')) {
-        setError('Email ou mot de passe incorrect');
+        setError('Numéro ou mot de passe incorrect');
       } else {
         setError(err);
       }
     }
   };
 
-  const fillDemo = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
+  const fillDemo = (demoPhone: string, demoPassword: string) => {
+    setPhone(demoPhone);
     setPassword(demoPassword);
   };
 
@@ -47,16 +53,19 @@ export default function LoginScreen() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                Email
+                Numéro de téléphone
               </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/[0.06] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all text-sm"
-                placeholder="email@restopos.fr"
-                required
-              />
+              <div className="relative">
+                <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => handlePhoneChange(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-white/[0.06] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all text-sm"
+                  placeholder="0612345678"
+                  required
+                />
+              </div>
             </div>
 
             <div>
@@ -90,7 +99,7 @@ export default function LoginScreen() {
 
             <button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading || !phone || !password}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -109,14 +118,14 @@ export default function LoginScreen() {
             <p className="text-xs text-gray-500 mb-3 text-center">Comptes de démonstration</p>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => fillDemo('admin@restopos.fr', 'admin123')}
+                onClick={() => fillDemo('787829227', 'admin123')}
                 className="px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors text-left"
               >
                 <span className="block font-semibold">Admin</span>
                 <span className="text-amber-500/70">Accès complet</span>
               </button>
               <button
-                onClick={() => fillDemo('caissier@restopos.fr', 'caissier123')}
+                onClick={() => fillDemo('787829228', 'caissier123')}
                 className="px-3 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-colors text-left"
               >
                 <span className="block font-semibold">Caissier</span>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, UserCheck, UserX, Monitor, ShieldAlert, X, Check, User, Pencil } from 'lucide-react';
+import { Plus, Trash2, UserCheck, UserX, Monitor, ShieldAlert, X, Check, User, Pencil, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { createCashier, updateCashier, deleteCashier } from '../lib/manageUser'
@@ -7,6 +7,7 @@ import { createCashier, updateCashier, deleteCashier } from '../lib/manageUser'
 interface Cashier {
   id: string;
   email: string;
+  phone: string;
   full_name: string;
   role: string;
   created_at: string;
@@ -39,7 +40,7 @@ export default function SettingsPanel() {
 
   // Form nouveaux caissiers
   const [showAddCashier, setShowAddCashier] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,47 +54,26 @@ export default function SettingsPanel() {
   // Modal assignation
   const [assigningCashier, setAssigningCashier] = useState<Cashier | null>(null);
 
+  // Édition station
   const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [editStationName, setEditStationName] = useState('');
+  const [editStationDesc, setEditStationDesc] = useState('');
+
+  // Édition caissier
+  const [editingCashier, setEditingCashier] = useState<Cashier | null>(null);
   const [editName, setEditName] = useState('');
-  const [editDesc, setEditDesc] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
-  const [editingCashier, setEditingCashier] = useState<Cashier | null>(null)
-  //const [editName, setEditName] = useState('')
-  const [editEmail, setEditEmail] = useState('')
-  const [editPassword, setEditPassword] = useState('')
-  const [editError, setEditError] = useState<string | null>(null)
-  const [editSaving, setEditSaving] = useState(false)
+  // View password
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
-  const handleEditStation = async () => {
-    if (!editingStation || !editName) return;
-    await supabase.from('pos_stations')
-      .update({
-        name: editName,
-        description: editDesc || null,
-      })
-      .eq('id', editingStation.id);
-    setEditingStation(null);
-    fetchAll();
-  };
-
-  const handleEditCashier = async () => {
-    if (!editingCashier) return
-    setEditSaving(true)
-    setEditError(null)
-    try {
-      await updateCashier(editingCashier.id, {
-        full_name: editName,
-        email: editEmail,
-        ...(editPassword && { password: editPassword }),
-      })
-      setEditingCashier(null)
-      fetchAll()
-    } catch (e: any) {
-      setEditError(e?.message ?? 'Erreur lors de la modification.')
-    } finally {
-      setEditSaving(false)
-    }
-  }
+  // Confirmations de suppression
+  const [confirmDeleteCashier, setConfirmDeleteCashier] = useState<Cashier | null>(null);
+  const [confirmDeleteStation, setConfirmDeleteStation] = useState<Station | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -113,41 +93,57 @@ export default function SettingsPanel() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Caissiers ──────────────────────────────────────────────
-
-  // ── handleAddCashier ──
+  // ── Caissiers ──
   const handleAddCashier = async () => {
-    if (!newEmail || !newName || !newPassword) {
-      setSaveError('Tous les champs sont obligatoires.')
-      return
+    if (!newPhone || !newName || !newPassword) {
+      setSaveError('Tous les champs sont obligatoires.');
+      return;
     }
-    setSaving(true)
-    setSaveError(null)
+    setSaving(true);
+    setSaveError(null);
     try {
-      await createCashier(newEmail, newPassword, newName)
-      setShowAddCashier(false)
-      setNewEmail(''); setNewName(''); setNewPassword('')
-      fetchAll()
+      await createCashier(newPhone, newPassword, newName);
+      setShowAddCashier(false);
+      setNewPhone(''); setNewName(''); setNewPassword('');
+      setShowNewPassword(false);
+      fetchAll();
     } catch (e: any) {
-      setSaveError(e?.message ?? 'Erreur lors de la création.')
+      setSaveError(e?.message ?? 'Erreur lors de la création.');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
-  // ── handleDeleteCashier ──
-  const handleDeleteCashier = async (id: string) => {
-    if (!confirm('Supprimer ce caissier ?')) return
+  const handleEditCashier = async () => {
+    if (!editingCashier) return;
+    setEditSaving(true);
+    setEditError(null);
     try {
-      await deleteCashier(id)
-      fetchAll()
+      await updateCashier(editingCashier.id, {
+        full_name: editName,
+        phone: editPhone,
+        ...(editPassword && { password: editPassword }),
+      });
+      setEditingCashier(null);
+      setShowEditPassword(false);
+      fetchAll();
     } catch (e: any) {
-      console.error(e)
+      setEditError(e?.message ?? 'Erreur lors de la modification.');
+    } finally {
+      setEditSaving(false);
     }
-  }
+  };
 
-  // ── Stations ───────────────────────────────────────────────
+  const handleDeleteCashier = async (id: string) => {
+    try {
+      await deleteCashier(id);
+      fetchAll();
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
 
+  // ── Stations ──
   const handleAddStation = async () => {
     if (!newStationName) return;
     await supabase.from('pos_stations').insert({
@@ -159,8 +155,16 @@ export default function SettingsPanel() {
     fetchAll();
   };
 
+  const handleEditStation = async () => {
+    if (!editingStation || !editStationName) return;
+    await supabase.from('pos_stations')
+      .update({ name: editStationName, description: editStationDesc || null })
+      .eq('id', editingStation.id);
+    setEditingStation(null);
+    fetchAll();
+  };
+
   const handleDeleteStation = async (id: string) => {
-    if (!confirm('Supprimer ce point de vente ?')) return;
     await supabase.from('pos_stations').delete().eq('id', id);
     fetchAll();
   };
@@ -172,8 +176,7 @@ export default function SettingsPanel() {
     fetchAll();
   };
 
-  // ── Assignations ───────────────────────────────────────────
-
+  // ── Assignations ──
   const getAssignment = (cashierId: string) =>
     assignments.find(a => a.cashier_id === cashierId);
 
@@ -263,9 +266,8 @@ export default function SettingsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">{cashier.full_name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{cashier.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{cashier.phone}</p>
                     </div>
-                    {/* Poste assigné */}
                     <button
                       onClick={() => setAssigningCashier(cashier)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -279,18 +281,18 @@ export default function SettingsPanel() {
                     </button>
                     <button
                       onClick={() => {
-                        setEditingCashier(cashier)
-                        setEditName(cashier.full_name)
-                        setEditEmail(cashier.email)
-                        setEditPassword('')
-                        setEditError(null)
+                        setEditingCashier(cashier);
+                        setEditName(cashier.full_name);
+                        setEditPhone(cashier.phone);
+                        setEditPassword('');
+                        setEditError(null);
                       }}
                       className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500 transition-colors"
                     >
                       <Pencil size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteCashier(cashier.id)}
+                      onClick={() => setConfirmDeleteCashier(cashier)}
                       className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={16} />
@@ -357,7 +359,17 @@ export default function SettingsPanel() {
                       {station.is_active ? 'Actif' : 'Inactif'}
                     </button>
                     <button
-                      onClick={() => handleDeleteStation(station.id)}
+                      onClick={() => {
+                        setEditingStation(station);
+                        setEditStationName(station.name);
+                        setEditStationDesc(station.description ?? '');
+                      }}
+                      className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-400 hover:text-blue-500 transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteStation(station)}
                       className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={16} />
@@ -391,24 +403,33 @@ export default function SettingsPanel() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Téléphone</label>
                 <input
-                  type="email"
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
+                  type="tel"
+                  value={newPhone}
+                  onChange={e => setNewPhone(e.target.value.replace(/\D/g, ''))}
                   className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
-                  placeholder="jean@restopos.fr"
+                  placeholder="48751505"
                 />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mot de passe</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(v => !v)}
+                    className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               {saveError && (
                 <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -425,7 +446,7 @@ export default function SettingsPanel() {
               </button>
               <button
                 onClick={handleAddCashier}
-                disabled={saving || !newEmail || !newName || !newPassword}
+                disabled={saving || !newPhone || !newName || !newPassword}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <Check size={16} />
@@ -485,6 +506,53 @@ export default function SettingsPanel() {
         </div>
       )}
 
+      {/* ── MODAL MODIFIER STATION ── */}
+      {editingStation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Modifier le point de vente</h2>
+              <button onClick={() => setEditingStation(null)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nom</label>
+                <input
+                  value={editStationName}
+                  onChange={e => setEditStationName(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</label>
+                <input
+                  value={editStationDesc}
+                  onChange={e => setEditStationDesc(e.target.value)}
+                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setEditingStation(null)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleEditStation}
+                disabled={!editStationName}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              >
+                <Check size={16} /> Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL ASSIGNATION ── */}
       {assigningCashier && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -516,7 +584,7 @@ export default function SettingsPanel() {
                     <button
                       key={station.id}
                       onClick={() => !isOccupied && handleAssign(station.id)}
-                      disabled={isOccupied}
+                      disabled={!!isOccupied}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm transition-colors ${
                         isOccupied
                           ? 'border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50'
@@ -526,7 +594,7 @@ export default function SettingsPanel() {
                       <Monitor size={16} className={isOccupied ? 'text-gray-300 dark:text-gray-600' : 'text-amber-500'} />
                       <span className="flex-1 text-left">{station.name}</span>
                       {isOccupied
-                        ? <span className="text-xs text-gray-400">Occupé par {occupiedBy.full_name}</span>
+                        ? <span className="text-xs text-gray-400">Occupé par {occupiedBy!.full_name}</span>
                         : station.description && <span className="text-gray-400 text-xs">{station.description}</span>
                       }
                     </button>
@@ -538,6 +606,7 @@ export default function SettingsPanel() {
         </div>
       )}
 
+      {/* ── MODAL MODIFIER CAISSIER ── */}
       {editingCashier && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
@@ -557,11 +626,11 @@ export default function SettingsPanel() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</label>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Téléphone</label>
                 <input
-                  type="email"
-                  value={editEmail}
-                  onChange={e => setEditEmail(e.target.value)}
+                  type="tel"
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))}
                   className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
                 />
               </div>
@@ -569,13 +638,22 @@ export default function SettingsPanel() {
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Nouveau mot de passe <span className="text-gray-400 normal-case font-normal">(laisser vide pour ne pas changer)</span>
                 </label>
-                <input
-                  type="password"
-                  value={editPassword}
-                  onChange={e => setEditPassword(e.target.value)}
-                  className="mt-1 w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showEditPassword ? 'text' : 'password'}
+                    value={editPassword}
+                    onChange={e => setEditPassword(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(v => !v)}
+                    className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               {editError && (
                 <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
@@ -592,11 +670,67 @@ export default function SettingsPanel() {
               </button>
               <button
                 onClick={handleEditCashier}
-                disabled={editSaving || !editName || !editEmail}
+                disabled={editSaving || !editName || !editPhone}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 <Check size={16} />
                 {editSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CONFIRMATION SUPPRESSION CAISSIER ── */}
+      {confirmDeleteCashier && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Supprimer ce caissier ?</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <span className="font-semibold text-gray-900 dark:text-white">{confirmDeleteCashier.full_name}</span> sera définitivement supprimé. Cette action est irréversible.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDeleteCashier(null)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { handleDeleteCashier(confirmDeleteCashier.id); setConfirmDeleteCashier(null); }}
+                className="px-5 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-lg shadow-red-500/25 hover:bg-red-600 transition-all active:scale-95"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CONFIRMATION SUPPRESSION STATION ── */}
+      {confirmDeleteStation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Supprimer ce point de vente ?</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                <span className="font-semibold text-gray-900 dark:text-white">{confirmDeleteStation.name}</span> sera définitivement supprimé. Cette action est irréversible.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDeleteStation(null)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => { handleDeleteStation(confirmDeleteStation.id); setConfirmDeleteStation(null); }}
+                className="px-5 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-lg shadow-red-500/25 hover:bg-red-600 transition-all active:scale-95"
+              >
+                Supprimer
               </button>
             </div>
           </div>

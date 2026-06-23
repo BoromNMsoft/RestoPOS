@@ -4,25 +4,31 @@ import { Session, User } from '@supabase/supabase-js';
 
 export type UserRole = 'admin' | 'cashier';
 
-
 export interface AuthUser {
   user: User;
   role: UserRole;
   fullName: string;
-  stationName?: string;    // ← ajouté
-  stationId?: string;      // ← ajouté
-    stationActive?: boolean;  // ← ajouté
+  phone?: string;           // ← ajouté
+  stationName?: string;
+  stationId?: string;
+  stationActive?: boolean;
 }
 
 interface AuthContextType {
   authUser: AuthUser | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (phone: string, password: string) => Promise<{ error: string | null }>;  // ← phone au lieu de email
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Convertit un numéro de téléphone en email factice pour Supabase
+function phoneToFakeEmail(phone: string): string {
+  const digitsOnly = phone.replace(/\D/g, '');
+  return `${digitsOnly}@restopos.local`;
+}
 
 function profileFromUser(user: User): { role: UserRole; fullName: string } {
   return {
@@ -37,19 +43,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const ensureProfile = useCallback(async () => {
-    // Server-side only (SECURITY DEFINER) — évite les erreurs RLS côté client
     await supabase.rpc('ensure_user_profile');
   }, []);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('role, full_name')
+      .select('role, full_name, phone')  // ← ajoute phone
       .eq('id', userId)
       .single();
     if (error || !data) return null;
 
-    // Récupère la station assignée
     const { data: assignment } = await supabase
       .from('cashier_assignments')
       .select('station_id, pos_stations(name, is_active)')
@@ -59,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       role: data.role as UserRole,
       fullName: data.full_name,
+      phone: data.phone ?? undefined,  // ← ajoute
       stationId: assignment?.station_id ?? null,
       stationName: (assignment?.pos_stations as any)?.name ?? null,
       stationActive: (assignment?.pos_stations as any)?.is_active ?? null,
@@ -76,9 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: s.user,
         role: profile?.role ?? 'cashier',
         fullName: profile?.fullName ?? s.user.email ?? 'Utilisateur',
+        phone: profile?.phone ?? undefined,  // ← ajoute
         stationId: profile?.stationId ?? undefined,
         stationName: profile?.stationName ?? undefined,
-        stationActive: profile?.stationActive ?? undefined,  // ← ajouté
+        stationActive: profile?.stationActive ?? undefined,
       };
     },
     [ensureProfile, fetchProfile]
@@ -91,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
         return;
       }
-
       setAuthUser(await loadAuthUser(s));
       setSession(s);
     },
@@ -105,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      // Defer Supabase calls to avoid auth callback deadlock.
       setTimeout(() => {
         void applySession(s).finally(() => setLoading(false));
       }, 0);
@@ -115,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession]);
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (phone: string, password: string) => {
+      const email = phoneToFakeEmail(phone);  // ← conversion ici
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return { error: error.message };
 
@@ -125,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthUser(await loadAuthUser(data.session));
       setSession(data.session);
-      return { error: null }; 
+      return { error: null };
     },
     [loadAuthUser]
   );

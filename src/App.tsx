@@ -26,12 +26,15 @@ function AppContent() {
     await authSignOut();
   }, [authSignOut]);
 
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
+  // const [darkMode, setDarkMode] = useState(() => {
+  //   if (typeof window !== 'undefined') {
+  //     return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  //   }
+  //   return false;
+  // });
+
+  const [darkMode, setDarkMode] = useState(false); //mode claire par defaut
+
   const [currentView, setCurrentView] = useState<ViewType>(() => {
     const saved = localStorage.getItem('currentView') as ViewType;
     return saved ?? 'pos';
@@ -248,7 +251,7 @@ function AppContent() {
           </p>
           <button
             onClick={signOut}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold mx-auto hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold mx-auto hover:bg-gray-500 transition-colors"
           >
             <LogOut size={16} />
             Se déconnecter
