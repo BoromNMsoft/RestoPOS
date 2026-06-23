@@ -506,7 +506,7 @@ export default function SettingsPanel() {
                 >
                   <UserX size={16} /> Non assigné
                 </button>
-                {stations.filter(s => s.is_active).map(station => {
+                {stations.map(station => {
                   const occupiedBy = cashiers.find(c =>
                     assignments.find(a => a.station_id === station.id && a.cashier_id === c.id)
                   );
