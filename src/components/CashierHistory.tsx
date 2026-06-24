@@ -3,6 +3,7 @@ import { ShoppingBag, X, Euro, TrendingUp, Clock } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { Sale } from '../types';
+import { formatSaleId } from '../types';
 
 type Period = 'today' | 'yesterday' | 'week';
 
@@ -153,7 +154,7 @@ export default function CashierHistory() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        #{sale.id.slice(0, 8).toUpperCase()}
+                        {formatSaleId(sale)}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}

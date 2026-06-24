@@ -26,14 +26,14 @@ function AppContent() {
     await authSignOut();
   }, [authSignOut]);
 
-  // const [darkMode, setDarkMode] = useState(() => {
-  //   if (typeof window !== 'undefined') {
-  //     return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  //   }
-  //   return false;
-  // });
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+       return window.matchMedia('(prefers-color-scheme: dark)').matches;
+     }
+     return false;
+   });
 
-  const [darkMode, setDarkMode] = useState(false); //mode claire par defaut
+  // const [darkMode, setDarkMode] = useState(false); //mode claire par defaut
 
   const [currentView, setCurrentView] = useState<ViewType>(() => {
     const saved = localStorage.getItem('currentView') as ViewType;

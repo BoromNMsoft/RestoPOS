@@ -1,6 +1,6 @@
-import { Plus, Pencil, Trash2, X, Check, Search, Package, ShieldAlert, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Search, Package, ShieldAlert, Tag, FolderInput } from 'lucide-react';
 import { Product, Category } from '../types';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -47,6 +47,20 @@ export default function ProductManagement({ products, categories, onRefetch }: P
   const [editCatIcon, setEditCatIcon] = useState('');
   const [catSaving, setCatSaving] = useState(false);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<Category | null>(null);
+
+  // ── Sélection multiple ──
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [showBulkCategorize, setShowBulkCategorize] = useState(false);
+  const [bulkTargetCategory, setBulkTargetCategory] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Réinitialise la sélection quand on change d'onglet
+  useEffect(() => {
+    setSelectedProducts(new Set());
+    setSelectedCategories(new Set());
+  }, [tab]);
 
   const filtered = useMemo(() => {
     return products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -190,6 +204,86 @@ export default function ProductManagement({ products, categories, onRefetch }: P
     onRefetch();
   };
 
+  // ── Sélection : helpers ──
+  const toggleProduct = (id: string) => {
+    setSelectedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleCategory = (id: string) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllProducts = () => {
+    if (selectedProducts.size === filtered.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filtered.map(p => p.id)));
+    }
+  };
+
+  const toggleAllCategories = () => {
+    if (selectedCategories.size === categories.length) {
+      setSelectedCategories(new Set());
+    } else {
+      setSelectedCategories(new Set(categories.map(c => c.id)));
+    }
+  };
+
+  // ── Actions groupées ──
+  const handleBulkDelete = async () => {
+    setBulkBusy(true);
+    try {
+      if (tab === 'products') {
+        const ids = Array.from(selectedProducts);
+        const { error } = await supabase.from('products').delete().in('id', ids);
+        if (error) throw error;
+        setSelectedProducts(new Set());
+      } else {
+        const ids = Array.from(selectedCategories);
+        const { error } = await supabase.from('categories').delete().in('id', ids);
+        if (error) throw error;
+        setSelectedCategories(new Set());
+      }
+      onRefetch();
+    } catch (e) {
+      console.error('Bulk delete error:', e);
+    } finally {
+      setBulkBusy(false);
+      setConfirmBulkDelete(false);
+    }
+  };
+
+  const handleBulkCategorize = async () => {
+    if (!bulkTargetCategory) return;
+    setBulkBusy(true);
+    try {
+      const ids = Array.from(selectedProducts);
+      const { error } = await supabase
+        .from('products')
+        .update({ category_id: bulkTargetCategory, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      setSelectedProducts(new Set());
+      onRefetch();
+    } catch (e) {
+      console.error('Bulk categorize error:', e);
+    } finally {
+      setBulkBusy(false);
+      setShowBulkCategorize(false);
+      setBulkTargetCategory('');
+    }
+  };
+
+  const selectedCount = tab === 'products' ? selectedProducts.size : selectedCategories.size;
+
   if (!isAdmin) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 p-8">
@@ -247,6 +341,47 @@ export default function ProductManagement({ products, categories, onRefetch }: P
           </div>
         </div>
 
+        {/* Barre d'actions groupées */}
+        {selectedCount > 0 && (
+          <div className="mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={tab === 'products' ? toggleAllProducts : toggleAllCategories}
+                className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline"
+              >
+                {(tab === 'products' ? selectedProducts.size === filtered.length : selectedCategories.size === categories.length)
+                  ? 'Tout désélectionner'
+                  : 'Tout sélectionner'}
+              </button>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                {selectedCount} sélectionné(s)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {tab === 'products' && (
+                <button
+                  onClick={() => { setBulkTargetCategory(categories[0]?.id || ''); setShowBulkCategorize(true); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <FolderInput size={14} /> Recatégoriser
+                </button>
+              )}
+              <button
+                onClick={() => setConfirmBulkDelete(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-colors"
+              >
+                <Trash2 size={14} /> Supprimer ({selectedCount})
+              </button>
+              <button
+                onClick={() => { setSelectedProducts(new Set()); setSelectedCategories(new Set()); }}
+                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Search */}
         {tab === 'products' && (
           <div className="relative mb-4">
@@ -264,57 +399,70 @@ export default function ProductManagement({ products, categories, onRefetch }: P
         {/* Product list */}
         {tab === 'products' && (
           <div className="space-y-2">
-            {filtered.map(product => (
-              <div
-                key={product.id}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-4 hover:shadow-md transition-shadow group"
-              >
-                <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package size={20} className="text-gray-300 dark:text-gray-600" />
+            {filtered.map(product => {
+              const isSelected = selectedProducts.has(product.id);
+              return (
+                <div
+                  key={product.id}
+                  className={`bg-white dark:bg-gray-800 rounded-xl border p-4 flex items-center gap-4 hover:shadow-md transition-all group ${
+                    isSelected ? 'border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/30' : 'border-gray-100 dark:border-gray-700'
+                  }`}
+                >
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleProduct(product.id)}
+                    style={{ accentColor: '#f59e0b' }}
+                    className="w-4 h-4 cursor-pointer shrink-0"
+                  />
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package size={20} className="text-gray-300 dark:text-gray-600" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                        product.is_available
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                      }`}>
+                        {product.is_available ? 'Disponible' : 'Indisponible'}
+                      </span>
                     </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
-                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      product.is_available
-                        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    }`}>
-                      {product.is_available ? 'Disponible' : 'Indisponible'}
-                    </span>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium">{getCategoryName(product.category_id)}</span>
+                      <span>Stock: {product.stock}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium">{getCategoryName(product.category_id)}</span>
-                    <span>Stock: {product.stock}</span>
+
+                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums shrink-0">{product.price.toFixed(2)} €</span>
+
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openEdit(product)}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteProduct(product)}
+                      disabled={deleting === product.id}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-red-600 transition-colors disabled:opacity-40"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
-
-                <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums shrink-0">{product.price.toFixed(2)} €</span>
-
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => openEdit(product)}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 transition-colors"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteProduct(product)}
-                    disabled={deleting === product.id}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-red-600 transition-colors disabled:opacity-40"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {filtered.length === 0 && (
               <div className="text-center py-16 text-gray-400 dark:text-gray-500">
@@ -328,37 +476,48 @@ export default function ProductManagement({ products, categories, onRefetch }: P
         {/* TAB CATÉGORIES */}
         {tab === 'categories' && (
           <div className="space-y-2">
-            {[...categories].sort((a, b) => a.sort_order - b.sort_order).map((category, idx, arr) => (
-              <div key={category.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-4 hover:shadow-md transition-shadow group">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
-                  <Tag size={18} className="text-amber-600 dark:text-amber-400" />
+            {[...categories].sort((a, b) => a.sort_order - b.sort_order).map((category, idx, arr) => {
+              const isSelected = selectedCategories.has(category.id);
+              return (
+                <div key={category.id} className={`bg-white dark:bg-gray-800 rounded-xl border p-4 flex items-center gap-4 hover:shadow-md transition-all group ${
+                  isSelected ? 'border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/30' : 'border-gray-100 dark:border-gray-700'
+                }`}>
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleCategory(category.id)}
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-amber-500 focus:ring-amber-500/40 focus:ring-offset-0 cursor-pointer shrink-0 accent-amber-500"                  />
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
+                    <Tag size={18} className="text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{category.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Icône : {category.icon} · Ordre : {category.sort_order}</p>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <button onClick={() => moveCategoryOrder(category, 'up')} disabled={idx === 0}
+                      className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs"
+                    >▲</button>
+                    <button onClick={() => moveCategoryOrder(category, 'down')} disabled={idx === arr.length - 1}
+                      className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs"
+                    >▼</button>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setEditingCategory(category); setEditCatName(category.name); setEditCatIcon(category.icon); }}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 transition-colors"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => setConfirmDeleteCategory(category)}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{category.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Icône : {category.icon} · Ordre : {category.sort_order}</p>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <button onClick={() => moveCategoryOrder(category, 'up')} disabled={idx === 0}
-                    className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs"
-                  >▲</button>
-                  <button onClick={() => moveCategoryOrder(category, 'down')} disabled={idx === arr.length - 1}
-                    className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs"
-                  >▼</button>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingCategory(category); setEditCatName(category.name); setEditCatIcon(category.icon); }}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-blue-600 transition-colors"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => setConfirmDeleteCategory(category)}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {categories.length === 0 && (
               <div className="text-center py-16 text-gray-400 dark:text-gray-500">
                 <Tag size={40} strokeWidth={1.5} className="mx-auto" />
@@ -629,6 +788,82 @@ export default function ProductManagement({ products, categories, onRefetch }: P
                 className="px-5 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-lg shadow-red-500/25 hover:bg-red-600 transition-all active:scale-95"
               >
                 Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMATION SUPPRESSION GROUPÉE */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                Supprimer {selectedCount} {tab === 'products' ? 'produit(s)' : 'catégorie(s)'} ?
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {tab === 'products'
+                  ? 'Ces produits seront définitivement supprimés. Cette action est irréversible.'
+                  : 'Ces catégories seront supprimées. Les produits associés seront sans catégorie.'}
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                disabled={bulkBusy}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkBusy}
+                className="px-5 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-lg shadow-red-500/25 hover:bg-red-600 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {bulkBusy ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RECATÉGORISATION GROUPÉE */}
+      {showBulkCategorize && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Recatégoriser</h2>
+              <button onClick={() => setShowBulkCategorize(false)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={18} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Déplacer <span className="font-semibold text-gray-900 dark:text-white">{selectedProducts.size} produit(s)</span> vers la catégorie :
+              </p>
+              <select
+                value={bulkTargetCategory}
+                onChange={e => setBulkTargetCategory(e.target.value)}
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+              >
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setShowBulkCategorize(false)}
+                disabled={bulkBusy}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleBulkCategorize}
+                disabled={bulkBusy || !bulkTargetCategory}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              >
+                <Check size={16} />{bulkBusy ? 'Déplacement...' : 'Déplacer'}
               </button>
             </div>
           </div>

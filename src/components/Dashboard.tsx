@@ -2,6 +2,7 @@ import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, Shi
 import { Sale } from '../types';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { formatSaleId } from '../types';
 
 interface DashboardProps {
   sales: Sale[];
@@ -320,7 +321,7 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                       <ShoppingBag size={16} className="text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">#{sale.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{formatSaleId(sale)}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                         {' - '}{sale.items?.length || 0} article(s)

@@ -1,6 +1,7 @@
 import { X, Printer, Check } from 'lucide-react';
 import { Sale } from '../types';
 import { useEffect, useRef } from 'react';
+import { formatSaleId } from '../types';
 
 interface ReceiptModalProps {
   sale: Sale;
@@ -274,7 +275,7 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
           <div className="text-center mb-3">
             <p className="font-bold text-gray-900 dark:text-white">RestoPOS</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{dateStr} - {timeStr}</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">#{sale.id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{formatSaleId(sale)}</p>
           </div>
 
           <div className="border-t border-dashed border-gray-300 dark:border-gray-700 my-3" />

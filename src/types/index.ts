@@ -50,3 +50,10 @@ export interface SaleItem {
 }
 
 export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure';
+
+export const formatSaleId = (sale: { id: string; station_name?: string | null }) => {
+  const shortId = sale.id.slice(0, 8).toUpperCase();
+  if (!sale.station_name) return `#${shortId}`;
+  const prefix = sale.station_name.replace(/\s+/g, '-').toUpperCase();
+  return `${prefix}-${shortId}`;
+};
