@@ -11,17 +11,34 @@ import Dashboard from './components/Dashboard';
 import ProductManagement from './components/ProductManagement';
 import LoginScreen from './components/LoginScreen';
 import SettingsPanel from './components/SettingsPanel';
+import { ShieldAlert, LogOut } from 'lucide-react';
+import CashierHistory from './components/CashierHistory';
+import CashClosure from './components/CashClosure';
+
+
 
 function AppContent() {
-  const { authUser, loading: authLoading } = useAuth();
+  const { authUser, loading: authLoading, signOut: authSignOut } = useAuth();
+
+  const signOut = useCallback(async () => {
+    setCurrentView('pos'); // ← reset la vue avant déconnexion
+    localStorage.removeItem('currentView'); // ← ajoute
+    await authSignOut();
+  }, [authSignOut]);
 
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
+       return window.matchMedia('(prefers-color-scheme: dark)').matches;
+     }
+     return false;
+   });
+
+  // const [darkMode, setDarkMode] = useState(false); //mode claire par defaut
+
+  const [currentView, setCurrentView] = useState<ViewType>(() => {
+    const saved = localStorage.getItem('currentView') as ViewType;
+    return saved ?? 'pos';
   });
-  const [currentView, setCurrentView] = useState<ViewType>('pos');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -29,25 +46,35 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
 
+  // Ajoute un wrapper pour setter
+  const handleViewChange = useCallback((view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('currentView', view);
+  }, []);
+
   // If cashier, force POS view
-  const effectiveView = authUser?.role === 'cashier' && currentView !== 'pos' ? 'pos' : currentView;
+  const effectiveView = authUser?.role === 'cashier' && !['pos', 'history'].includes(currentView) ? 'pos' : currentView;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  const [stations, setStations] = useState<any[]>([]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, prodRes, salesRes] = await Promise.all([
+      const [catRes, prodRes, salesRes, stationsRes] = await Promise.all([
         supabase.from('categories').select('*').order('sort_order'),
         supabase.from('products').select('*').order('name'),
         supabase.from('sales').select('*, items:sale_items(*)').order('created_at', { ascending: false }).limit(100),
+        supabase.from('pos_stations').select('*, cashier_assignments(cashier_id, profiles(full_name))').order('created_at'),
       ]);
 
       if (catRes.data) setCategories(catRes.data);
       if (prodRes.data) setProducts(prodRes.data);
       if (salesRes.data) setSales(salesRes.data as Sale[]);
+      if (stationsRes.data) setStations(stationsRes.data);
     } catch (e) {
       console.error('Fetch error:', e);
     } finally {
@@ -64,7 +91,31 @@ function AppContent() {
       setCart([]);
       setSales([]);
       setLoading(false);
+      setStations([]);
     }
+  }, [authUser, fetchData]);
+
+  useEffect(() => {
+  if (!authUser) return;
+
+    // Écoute les nouvelles ventes en temps réel
+    const channel = supabase
+      .channel('realtime-sales')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'sales' },
+        () => fetchData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        () => fetchData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [authUser, fetchData]);
 
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
@@ -72,6 +123,11 @@ function AppContent() {
   const addToCart = useCallback((product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
+      const currentQty = existing?.quantity ?? 0;
+
+      // Bloque si on atteint le stock max
+      if (currentQty >= product.stock) return prev;
+
       if (existing) {
         return prev.map(item =>
           item.product.id === product.id
@@ -86,11 +142,12 @@ function AppContent() {
   const updateQuantity = useCallback((productId: string, delta: number) => {
     setCart(prev => {
       return prev
-        .map(item =>
-          item.product.id === productId
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item
-        )
+        .map(item => {
+          if (item.product.id !== productId) return item;
+          // Bloque si on dépasse le stock
+          if (delta > 0 && item.quantity >= item.product.stock) return item;
+          return { ...item, quantity: Math.max(0, item.quantity + delta) };
+        })
         .filter(item => item.quantity > 0);
     });
   }, []);
@@ -101,7 +158,7 @@ function AppContent() {
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  const handleCheckout = useCallback(async (amountReceived: number, changeGiven: number) => {
+  const handleCheckout = useCallback(async (amountReceived: number, changeGiven: number, method: 'cash' | 'card' = 'cash', note: string = '') => {
     if (cart.length === 0) return;
 
     try {
@@ -111,7 +168,12 @@ function AppContent() {
           total: cartTotal,
           amount_received: amountReceived,
           change_given: changeGiven,
-          payment_method: 'cash',
+          payment_method: method,  // ← utilise method
+          note: note || null,       // ← ajoute la note
+          cashier_id: authUser?.user.id,
+          cashier_name: authUser?.fullName,
+          station_id: authUser?.stationId,
+          station_name: authUser?.stationName,
         })
         .select()
         .single();
@@ -130,7 +192,6 @@ function AppContent() {
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
       if (itemsError) throw itemsError;
 
-      // Update stock
       for (const item of cart) {
         await supabase
           .from('products')
@@ -149,7 +210,7 @@ function AppContent() {
     } catch (e) {
       console.error('Checkout error:', e);
     }
-  }, [cart, cartTotal, fetchData]);
+  }, [cart, cartTotal, authUser, fetchData]);
 
   if (authLoading) {
     return (
@@ -170,14 +231,45 @@ function AppContent() {
     );
   }
 
+  // ← Ajoute ce bloc juste après
+  if (authUser.role === 'cashier' && (!authUser.stationId || authUser.stationActive === false)) {
+    const isInactive = authUser.stationId && authUser.stationActive === false;
+    return (
+      <div className={`h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}>
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+            <ShieldAlert size={32} className="text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {isInactive ? 'Poste inactif' : 'Aucun poste assigné'}
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+            {isInactive
+              ? `Le poste "${authUser.stationName}" est actuellement inactif. Merci de contacter l'administrateur.`
+              : "Vous n'êtes assigné à aucune caisse. Merci de contacter l'administrateur."
+            }
+          </p>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold mx-auto hover:bg-gray-500 transition-colors"
+          >
+            <LogOut size={16} />
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`h-full flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white transition-colors duration-200 ${darkMode ? 'dark' : ''}`}>
       <Header
         currentView={effectiveView}
-        onViewChange={setCurrentView}
+        onViewChange={handleViewChange}  // ← ici
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+        onSignOut={signOut} 
       />
 
       {effectiveView === 'pos' && (
@@ -211,9 +303,15 @@ function AppContent() {
         </div>
       )}
 
+      {effectiveView === 'history' && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CashierHistory />
+        </div>
+      )}
+
       {effectiveView === 'dashboard' && (
         <div className="flex-1 min-h-0 overflow-hidden">
-          <Dashboard sales={sales} />
+          <Dashboard sales={sales} stations={stations} />
         </div>
       )}
       {effectiveView === 'products' && (
@@ -225,6 +323,12 @@ function AppContent() {
       {effectiveView === 'settings' && (
         <div className="flex-1 min-h-0 overflow-hidden">
           <SettingsPanel />
+        </div>
+      )}
+
+      {effectiveView === 'closure' && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CashClosure />
         </div>
       )}
 

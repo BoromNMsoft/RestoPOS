@@ -31,7 +31,12 @@ export interface Sale {
   change_given: number;
   payment_method: string;
   created_at: string;
+  cashier_id?: string;
+  cashier_name?: string;
+  station_id?: string;
+  station_name?: string;
   items?: SaleItem[];
+  note?: string;
 }
 
 export interface SaleItem {
@@ -44,4 +49,11 @@ export interface SaleItem {
   subtotal: number;
 }
 
-export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings';
+export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure';
+
+export const formatSaleId = (sale: { id: string; station_name?: string | null }) => {
+  const shortId = sale.id.slice(0, 8).toUpperCase();
+  if (!sale.station_name) return `#${shortId}`;
+  const prefix = sale.station_name.replace(/\s+/g, '-').toUpperCase();
+  return `${prefix}-${shortId}`;
+};

@@ -53,7 +53,8 @@ export default function CartPanel({ cart, onUpdateQuantity, onRemoveItem, onClea
               <span className="w-6 text-center text-sm font-semibold text-gray-900 dark:text-white">{item.quantity}</span>
               <button
                 onClick={() => onUpdateQuantity(item.product.id, 1)}
-                className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                disabled={item.quantity >= item.product.stock}
+                className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus size={12} />
               </button>

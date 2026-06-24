@@ -18,10 +18,10 @@ async function callManageUser(payload: object) {
   return data
 }
 
-export const createCashier = (email: string, password: string, full_name: string) =>
-  callManageUser({ action: 'create', email, password, full_name })
+export const createCashier = (phone: string, password: string, full_name: string) =>
+  callManageUser({ action: 'create', phone, password, full_name })
 
-export const updateCashier = (userId: string, updates: { email?: string; password?: string; full_name?: string }) =>
+export const updateCashier = (userId: string, updates: { phone?: string; password?: string; full_name?: string }) =>
   callManageUser({ action: 'update', userId, ...updates })
 
 export const deleteCashier = (userId: string) =>
