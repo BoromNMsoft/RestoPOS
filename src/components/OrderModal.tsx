@@ -29,6 +29,11 @@ export default function OrderModal({ total, onClose, onConfirm }: OrderModalProp
 
   const handleConfirm = async () => {
     setError(null);
+    // ← ajoute cette vérification
+    if (!customerPhone.trim()) {
+      setError('Le numéro de téléphone est obligatoire.');
+      return;
+    }
     setSaving(true);
     try {
       await onConfirm({
@@ -78,7 +83,7 @@ export default function OrderModal({ total, onClose, onConfirm }: OrderModalProp
 
           {/* Téléphone client */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Téléphone</label>
+            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Téléphone<span className="text-red-500">*</span></label>
             <div className="relative mt-1">
               <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -101,7 +106,7 @@ export default function OrderModal({ total, onClose, onConfirm }: OrderModalProp
                 onChange={e => setNote(e.target.value)}
                 rows={2}
                 className="w-full pl-10 pr-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all resize-none"
-                placeholder="Sans oignon, bien cuit..."
+                placeholder="Ajouter une note ..."
               />
             </div>
           </div>
@@ -129,7 +134,7 @@ export default function OrderModal({ total, onClose, onConfirm }: OrderModalProp
           </button>
           <button
             onClick={handleConfirm}
-            disabled={saving}
+            disabled={saving || !customerPhone.trim()}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check size={16} />
