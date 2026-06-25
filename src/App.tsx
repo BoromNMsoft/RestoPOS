@@ -392,7 +392,9 @@ function AppContent() {
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
-        onSignOut={signOut} 
+        onSignOut={signOut}
+        restaurantName={authUser.restaurantName}   // ← ajoute
+        restaurantLogo={authUser.restaurantLogo}   // ← ajoute
       />
 
       {effectiveView === 'orders' && (
@@ -463,7 +465,12 @@ function AppContent() {
       )}
 
       {receiptSale && (
-        <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />
+        <ReceiptModal
+          sale={receiptSale}
+          onClose={() => setReceiptSale(null)}
+          restaurantName={authUser.restaurantName}
+          restaurantLogo={authUser.restaurantLogo}
+        />
       )}
       {showOrderModal && (
         <OrderModal
