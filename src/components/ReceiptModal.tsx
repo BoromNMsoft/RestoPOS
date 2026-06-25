@@ -6,9 +6,11 @@ import { formatSaleId } from '../types';
 interface ReceiptModalProps {
   sale: Sale;
   onClose: () => void;
+  restaurantName?: string;        // ← ajoute
+  restaurantLogo?: string | null; // ← ajoute
 }
 
-export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
+export default function ReceiptModal({ sale, onClose, restaurantName, restaurantLogo }: ReceiptModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -187,12 +189,13 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
       <body>
   
         <div class="header">
-          <div class="logo">RestoPOS</div>
+          ${restaurantLogo ? `<img src="${restaurantLogo}" alt="logo" style="width:48px;height:48px;border-radius:8px;object-fit:cover;margin:0 auto 8px;display:block;" />` : ''}
+          <div class="logo">${restaurantName ?? 'RestoPOS'}</div>
           <div class="tagline">Votre restaurant de confiance</div>
           <div class="meta">${dateStr} &nbsp;|&nbsp; ${timeStr}</div>
           <div class="ref">#${sale.id.slice(0, 8).toUpperCase()}</div>
         </div>
-  
+
         <hr class="sep-solid" />
   
         <table>
@@ -273,7 +276,10 @@ export default function ReceiptModal({ sale, onClose }: ReceiptModalProps) {
         {/* Receipt */}
         <div ref={receiptRef} className="px-6 py-4">
           <div className="text-center mb-3">
-            <p className="font-bold text-gray-900 dark:text-white">RestoPOS</p>
+            {restaurantLogo && (
+              <img src={restaurantLogo} alt={restaurantName} className="w-10 h-10 rounded-lg object-cover mx-auto mb-1.5" />
+            )}
+            <p className="font-bold text-gray-900 dark:text-white">{restaurantName ?? 'RestoPOS'}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{dateStr} - {timeStr}</p>
             <p className="text-xs text-gray-400 dark:text-gray-500">{formatSaleId(sale)}</p>
           </div>

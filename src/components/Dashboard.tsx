@@ -1,5 +1,5 @@
-import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X, Monitor, User } from 'lucide-react';
-import { Sale } from '../types';
+import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X, Monitor, User, ClipboardList, Store, Bike, Ban, Phone } from 'lucide-react';
+import { Sale, Order, OrderType, OrderStatus, ORDER_TYPE_LABELS } from '../types';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { formatSaleId } from '../types';
@@ -7,6 +7,7 @@ import { formatSaleId } from '../types';
 interface DashboardProps {
   sales: Sale[];
   stations: StationInfo[];
+  orders: Order[];
 }
 
 interface StationInfo {
@@ -19,7 +20,15 @@ interface StationInfo {
   }[];
 }
 
-export default function Dashboard({ sales, stations}: DashboardProps) {
+const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'preparing', 'ready'];
+
+const TYPE_ICON: Record<OrderType, typeof Store> = {
+  dine_in: Store,
+  takeaway: ShoppingBag,
+  delivery: Bike,
+};
+
+export default function Dashboard({ sales, stations, orders }: DashboardProps) {
   const { authUser } = useAuth();
   const isAdmin = authUser?.role === 'admin';
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
@@ -27,21 +36,27 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [stationPanelOpen, setStationPanelOpen] = useState(false);
 
-  const filteredSales = useMemo(() => {
+  const inPeriod = (iso: string) => {
     const now = new Date();
+    const d = new Date(iso);
+    if (period === 'today') return d.toDateString() === now.toDateString();
+    if (period === 'week') return d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return d >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  };
+
+  const filteredSales = useMemo(() => {
     return sales.filter(s => {
-      const d = new Date(s.created_at);
-
-      let matchPeriod = false;
-      if (period === 'today') matchPeriod = d.toDateString() === now.toDateString();
-      else if (period === 'week') matchPeriod = d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      else matchPeriod = d >= new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
       const matchStation = selectedStation === 'all' || s.station_id === selectedStation;
-
-      return matchPeriod && matchStation;
+      return inPeriod(s.created_at) && matchStation;
     });
   }, [sales, period, selectedStation]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      const matchStation = selectedStation === 'all' || o.station_id === selectedStation;
+      return inPeriod(o.created_at) && matchStation;
+    });
+  }, [orders, period, selectedStation]);
 
   const stats = useMemo(() => {
     const totalRevenue = filteredSales.reduce((s, sale) => s + sale.total, 0);
@@ -50,6 +65,36 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
     const lastSale = filteredSales.length > 0 ? filteredSales[0] : null;
     return { totalRevenue, totalTransactions, avgTicket, lastSale };
   }, [filteredSales]);
+
+  // ── Indicateurs commandes ──
+  const orderStats = useMemo(() => {
+    // En cours : état live, calculé sur toutes les commandes (pas filtré par période)
+    const activeOrders = orders.filter(o => ACTIVE_STATUSES.includes(o.status));
+    const activeCount = activeOrders.length;
+    const unpaidActive = activeOrders.filter(o => !o.sale_id).length;
+    const paidCount = filteredOrders.filter(o => o.sale_id).length;
+
+    // Sur la période sélectionnée
+    const total = filteredOrders.length;
+    const cancelled = filteredOrders.filter(o => o.status === 'cancelled').length;
+    const cancelRate = total > 0 ? (cancelled / total) * 100 : 0;
+
+    // Répartition par type (hors annulées)
+    const byType: Record<OrderType, number> = { dine_in: 0, takeaway: 0, delivery: 0 };
+    filteredOrders.forEach(o => {
+      if (o.status !== 'cancelled') byType[o.order_type] = (byType[o.order_type] ?? 0) + 1;
+    });
+    const typeMax = Math.max(byType.dine_in, byType.takeaway, byType.delivery, 1);
+
+    // Commandes vs ventes directes (chiffre d'affaires)
+    const orderSaleIds = new Set(orders.filter(o => o.sale_id).map(o => o.sale_id));
+    const orderRevenue = filteredSales.filter(s => orderSaleIds.has(s.id)).reduce((sum, s) => sum + s.total, 0);
+    const directRevenue = filteredSales.filter(s => !orderSaleIds.has(s.id)).reduce((sum, s) => sum + s.total, 0);
+    const revenueTotal = orderRevenue + directRevenue;
+    const orderPct = revenueTotal > 0 ? (orderRevenue / revenueTotal) * 100 : 0;
+
+    return { activeCount, unpaidActive, total, cancelled, cancelRate, paidCount, byType, typeMax, orderRevenue, directRevenue, revenueTotal, orderPct };
+  }, [orders, filteredOrders, filteredSales]);
 
   const recentSales = useMemo(() => {
     return [...filteredSales]
@@ -84,8 +129,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
     );
   }
 
-  
-
   const availableStations = useMemo(() => {
     const map = new Map<string, string>();
     sales.forEach(s => {
@@ -105,8 +148,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-              
-              {/* Badge Live */}
               {(() => {
                 const activeCaisses = stations.filter(s => s.is_active).length;
                 if (activeCaisses === 0) return null;
@@ -123,8 +164,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Vue d'ensemble de vos ventes</p>
           </div>
           <div className="flex items-center gap-2">
-
-            {/* Filtre par caisse */}
             {availableStations.length > 0 && (
               <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                 <button
@@ -141,14 +180,10 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                   const stationInfo = stations.find(s => s.id === station.id);
                   const isActive = stationInfo?.is_active ?? false;
                   const cashierName = stationInfo?.cashier_assignments?.[0]?.profiles?.full_name ?? null;
-
                   return (
                     <button
                       key={station.id}
-                      onClick={() => {
-                        setSelectedStation(station.id);
-                        setStationPanelOpen(true);
-                      }}
+                      onClick={() => { setSelectedStation(station.id); setStationPanelOpen(true); }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                         selectedStation === station.id
                           ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
@@ -163,8 +198,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                 })}
               </div>
             )}
-
-            {/* Filtre par période */}
             <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
               {(['today', 'week', 'month'] as const).map(p => (
                 <button
@@ -180,7 +213,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                 </button>
               ))}
             </div>
-
           </div>
         </div>
 
@@ -191,7 +223,6 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
           const cashierName = stationInfo.cashier_assignments?.[0]?.profiles?.full_name ?? null;
           const stationSales = filteredSales.filter(s => s.station_id === selectedStation);
           const stationTotal = stationSales.reduce((s, sale) => s + sale.total, 0);
-
           return (
             <div className="mb-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-6">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
@@ -234,39 +265,104 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
 
         {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            icon={<Euro size={20} />}
-            label="Chiffre d'affaires"
-            value={`${stats.totalRevenue.toFixed(2)} €`}
-            trend={+12.5}
-            color="amber"
-          />
-          <StatCard
-            icon={<ShoppingBag size={20} />}
-            label="Transactions"
-            value={stats.totalTransactions.toString()}
-            trend={+8.2}
-            color="blue"
-          />
-          <StatCard
-            icon={<TrendingUp size={20} />}
-            label="Panier moyen"
-            value={`${stats.avgTicket.toFixed(2)} €`}
-            trend={-2.1}
-            color="emerald"
-          />
-          <StatCard
-            icon={<Clock size={20} />}
-            label="Dernière vente"
-            value={stats.lastSale ? new Date(stats.lastSale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-            trend={0}
-            color="purple"
-          />
+          <StatCard icon={<Euro size={20} />} label="Chiffre d'affaires" value={`${stats.totalRevenue.toFixed(2)} €`} trend={+12.5} color="amber" />
+          <StatCard icon={<ShoppingBag size={20} />} label="Transactions" value={stats.totalTransactions.toString()} trend={+8.2} color="blue" />
+          <StatCard icon={<ClipboardList size={20} />} label="Commandes (payées)" value={orderStats.paidCount.toString()} trend={0}color="emerald"/>          <StatCard icon={<Clock size={20} />} label="Dernière vente" value={stats.lastSale ? new Date(stats.lastSale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--'} trend={0} color="purple" />
+        </div>
+
+        {/* ── SECTION COMMANDES ── */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardList size={16} className="text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Commandes</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* En cours */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                  <ClipboardList size={18} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">En cours</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{orderStats.activeCount}</p>
+              <p className="text-xs mt-1">
+                {orderStats.unpaidActive > 0
+                  ? <span className="text-red-500 font-semibold">{orderStats.unpaidActive} non payée(s)</span>
+                  : <span className="text-emerald-600 dark:text-emerald-400">Toutes payées</span>
+                }
+              </p>
+            </div>
+
+            {/* Taux d'annulation */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                  <Ban size={18} className="text-red-500" />
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Taux d'annulation</span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{orderStats.cancelRate.toFixed(0)}%</p>
+              <p className="text-xs text-gray-400 mt-1">{orderStats.cancelled} / {orderStats.total} commande(s)</p>
+            </div>
+
+            {/* Répartition par type */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 lg:col-span-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Répartition par type</span>
+              <div className="mt-3 space-y-2.5">
+                {(['dine_in', 'takeaway', 'delivery'] as OrderType[]).map(type => {
+                  const Icon = TYPE_ICON[type];
+                  const count = orderStats.byType[type];
+                  const pct = (count / orderStats.typeMax) * 100;
+                  return (
+                    <div key={type} className="flex items-center gap-3">
+                      <Icon size={14} className="text-gray-400 shrink-0" />
+                      <span className="text-xs text-gray-600 dark:text-gray-300 w-20 shrink-0">{ORDER_TYPE_LABELS[type]}</span>
+                      <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white w-6 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Commandes vs Ventes directes */}
+          <div className="mt-4 bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Origine du chiffre d'affaires</span>
+              <span className="text-xs text-gray-400">{orderStats.orderPct.toFixed(0)}% via commandes</span>
+            </div>
+            {orderStats.revenueTotal > 0 ? (
+              <>
+                <div className="h-3 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-gradient-to-r from-amber-500 to-orange-400" style={{ width: `${orderStats.orderPct}%` }} />
+                  <div className="h-full bg-gradient-to-r from-blue-400 to-blue-500" style={{ width: `${100 - orderStats.orderPct}%` }} />
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Commandes</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.orderRevenue.toFixed(2)} €</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    <span className="text-xs text-gray-600 dark:text-gray-300">Ventes directes</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.directRevenue.toFixed(2)} €</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">Aucune donnée pour cette période</p>
+            )}
+          </div>
         </div>
 
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Hourly chart */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Ventes par heure</h3>
             <div className="flex items-end gap-1 h-40">
@@ -291,14 +387,12 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
             </div>
           </div>
 
-          {/* Top products */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Produits les plus vendus</h3>
             <TopProducts sales={filteredSales} />
           </div>
         </div>
 
-        {/* Recent transactions */}
         {/* Recent transactions */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
@@ -345,20 +439,15 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
               className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md"
               onClick={e => e.stopPropagation()}
             >
-              {/* Header */}
               <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                    Transaction #{selectedSale.id.slice(0, 8).toUpperCase()}
+                    Transaction {formatSaleId(selectedSale)}
                   </h2>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {new Date(selectedSale.created_at).toLocaleDateString('fr-FR', {
-                      day: '2-digit', month: 'long', year: 'numeric'
-                    })}
+                    {new Date(selectedSale.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                     {' à '}
-                    {new Date(selectedSale.created_at).toLocaleTimeString('fr-FR', {
-                      hour: '2-digit', minute: '2-digit', second: '2-digit'
-                    })}
+                    {new Date(selectedSale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </p>
                 </div>
                 <button
@@ -368,8 +457,7 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                   <X size={18} />
                 </button>
               </div>
-              
-              {/* Caissier & Caisse */}
+
               {(selectedSale.cashier_name || selectedSale.station_name) && (
                 <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 text-xs">
                   {selectedSale.cashier_name && (
@@ -387,11 +475,8 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                 </div>
               )}
 
-              {/* Articles */}
               <div className="px-6 py-4">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Articles vendus
-                </p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Articles vendus</p>
                 <div className="space-y-2">
                   {selectedSale.items && selectedSale.items.length > 0 ? (
                     selectedSale.items.map(item => (
@@ -403,9 +488,7 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                           <span className="text-sm text-gray-900 dark:text-white">{item.product_name}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
-                            {item.subtotal.toFixed(2)} €
-                          </span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{item.subtotal.toFixed(2)} €</span>
                           <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} € / unité</p>
                         </div>
                       </div>
@@ -416,11 +499,8 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                 </div>
               </div>
 
-              {/* Paiement */}
               <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl space-y-2">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                  Paiement
-                </p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Paiement</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Moyen de paiement</span>
                   <span className="font-semibold text-gray-900 dark:text-white capitalize">
@@ -429,21 +509,15 @@ export default function Dashboard({ sales, stations}: DashboardProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Montant reçu</span>
-                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
-                    {selectedSale.amount_received.toFixed(2)} €
-                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedSale.amount_received.toFixed(2)} €</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Monnaie rendue</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                    {selectedSale.change_given.toFixed(2)} €
-                  </span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{selectedSale.change_given.toFixed(2)} €</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums text-base">
-                    {selectedSale.total.toFixed(2)} €
-                  </span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums text-base">{selectedSale.total.toFixed(2)} €</span>
                 </div>
               </div>
             </div>
@@ -461,13 +535,10 @@ function StatCard({ icon, label, value, trend, color }: { icon: React.ReactNode;
     emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400',
     purple: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
   };
-
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
-          {icon}
-        </div>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>{icon}</div>
         {trend !== 0 && (
           <div className={`flex items-center gap-0.5 text-xs font-semibold ${trend > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
             {trend > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
@@ -511,10 +582,7 @@ function TopProducts({ sales }: { sales: Sale[] }) {
               <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{p.revenue.toFixed(2)} €</span>
             </div>
             <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500"
-                style={{ width: `${(p.revenue / maxRevenue) * 100}%` }}
-              />
+              <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500" style={{ width: `${(p.revenue / maxRevenue) * 100}%` }} />
             </div>
           </div>
         </div>

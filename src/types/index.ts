@@ -49,7 +49,47 @@ export interface SaleItem {
   subtotal: number;
 }
 
-export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure';
+// ── Commandes ──────────────────────────────────────────────
+
+export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'completed' | 'cancelled';
+
+
+export interface Order {
+  id: string;
+  order_type: OrderType;
+  status: OrderStatus;
+  total: number;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  delivery_address?: string | null;
+  note?: string | null;
+  cashier_id?: string | null;
+  cashier_name?: string | null;
+  station_id?: string | null;
+  station_name?: string | null;
+  cancel_reason?: string | null;   // ← ajoute
+  sale_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: OrderItem[];
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+// ── Vues ───────────────────────────────────────────────────
+
+export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure' | 'orders';
+
+// ── Helpers ────────────────────────────────────────────────
 
 export const formatSaleId = (sale: { id: string; station_name?: string | null }) => {
   const shortId = sale.id.slice(0, 8).toUpperCase();
@@ -57,3 +97,20 @@ export const formatSaleId = (sale: { id: string; station_name?: string | null })
   const prefix = sale.station_name.replace(/\s+/g, '-').toUpperCase();
   return `${prefix}-${shortId}`;
 };
+
+// Libellés lisibles pour l'affichage
+export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
+  dine_in: 'Sur place',
+  takeaway: 'À emporter',
+  delivery: 'Livraison',
+};
+
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'En attente',
+  preparing: 'En préparation',
+  ready: 'Prête',
+  delivered: 'Récupérée',
+  completed: 'Terminée',
+  cancelled: 'Annulée',
+};
+

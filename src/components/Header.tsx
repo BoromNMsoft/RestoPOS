@@ -1,5 +1,4 @@
-import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor, History, Lock } from 'lucide-react';
-import { ViewType } from '../types';
+import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor, History, Lock, ClipboardList } from 'lucide-react';import { ViewType } from '../types';
 import { useAuth, UserRole } from '../hooks/useAuth';
 
 interface HeaderProps {
@@ -9,13 +8,16 @@ interface HeaderProps {
   onToggleDark: () => void;
   cartCount: number;
   onSignOut: () => void; // ← ajoute
+  restaurantName?: string;        // ← ajoute
+  restaurantLogo?: string | null; // ← ajoute
 }
 
-export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount, onSignOut }: HeaderProps) {  const { authUser} = useAuth();
+export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount, onSignOut, restaurantName, restaurantLogo }: HeaderProps) {  const { authUser} = useAuth();
   const role = authUser?.role as UserRole | null;
 
   const navItems: { view: ViewType; icon: React.ReactNode; label: string; adminOnly?: boolean; cashierOnly?: boolean }[] = [
     { view: 'pos',       icon: <ShoppingCart size={18} />,    label: 'Caisse' },
+    { view: 'orders',    icon: <ClipboardList size={18} />,   label: 'Commandes' },
     { view: 'history',   icon: <History size={18} />,         label: 'Mes ventes',  cashierOnly: true },
     { view: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard',   adminOnly: true },
     { view: 'products',  icon: <Package size={18} />,         label: 'Produits',    adminOnly: true },
@@ -37,13 +39,17 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
 
   return (
     <header className="h-14 flex items-center justify-between px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm z-50 relative">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        {restaurantLogo ? (
+          <img src={restaurantLogo} alt={restaurantName} className="w-8 h-8 rounded-lg object-cover shadow-md" />
+        ) : (
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md">
             <UtensilsCrossed size={16} className="text-white" />
           </div>
-          <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">RestoPOS</span>
-        </div>
+        )}
+        <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">
+          {restaurantName ?? 'RestoPOS'}
+        </span>
       </div>
 
       <nav className="flex items-center gap-1">

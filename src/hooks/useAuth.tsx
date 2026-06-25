@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 
-export type UserRole = 'admin' | 'cashier';
+export type UserRole = 'super_admin' | 'admin' | 'cashier';
 
 export interface AuthUser {
   user: User;
   role: UserRole;
   fullName: string;
   phone?: string;           // ← ajouté
+  restaurantName?: string;        // ← ajoute
+  restaurantLogo?: string | null; // ← ajoute
   stationName?: string;
   stationId?: string;
   stationActive?: boolean;
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('role, full_name, phone')  // ← ajoute phone
+      .select('role, full_name, phone, restaurant_id')  // ← ajoute phone
       .eq('id', userId)
       .single();
     if (error || !data) return null;
@@ -60,10 +62,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('cashier_id', userId)
       .single();
 
+    // ← récupère le resto courant
+    let restaurantName: string | undefined;
+    let restaurantLogo: string | null | undefined;
+    if (data.restaurant_id) {
+      const { data: resto } = await supabase
+        .from('restaurants')
+        .select('name, logo_url')
+        .eq('id', data.restaurant_id)
+        .single();
+      restaurantName = resto?.name ?? undefined;
+      restaurantLogo = resto?.logo_url ?? null;
+    }
+
     return {
       role: data.role as UserRole,
       fullName: data.full_name,
       phone: data.phone ?? undefined,  // ← ajoute
+      restaurantName,   // ←
+      restaurantLogo,   // ←
       stationId: assignment?.station_id ?? null,
       stationName: (assignment?.pos_stations as any)?.name ?? null,
       stationActive: (assignment?.pos_stations as any)?.is_active ?? null,
@@ -82,6 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? 'cashier',
         fullName: profile?.fullName ?? s.user.email ?? 'Utilisateur',
         phone: profile?.phone ?? undefined,  // ← ajoute
+        restaurantName: profile?.restaurantName ?? undefined,   // ← ajoute
+        restaurantLogo: profile?.restaurantLogo ?? null,        // ← ajoute
         stationId: profile?.stationId ?? undefined,
         stationName: profile?.stationName ?? undefined,
         stationActive: profile?.stationActive ?? undefined,
