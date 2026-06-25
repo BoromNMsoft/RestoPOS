@@ -1,5 +1,4 @@
-import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor, History, Lock } from 'lucide-react';
-import { ViewType } from '../types';
+import { ShoppingCart, LayoutDashboard, Package, Moon, Sun, UtensilsCrossed, LogOut, Shield, Settings, Monitor, History, Lock, ClipboardList } from 'lucide-react';import { ViewType } from '../types';
 import { useAuth, UserRole } from '../hooks/useAuth';
 
 interface HeaderProps {
@@ -16,6 +15,7 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
 
   const navItems: { view: ViewType; icon: React.ReactNode; label: string; adminOnly?: boolean; cashierOnly?: boolean }[] = [
     { view: 'pos',       icon: <ShoppingCart size={18} />,    label: 'Caisse' },
+    { view: 'orders',    icon: <ClipboardList size={18} />,   label: 'Commandes' },
     { view: 'history',   icon: <History size={18} />,         label: 'Mes ventes',  cashierOnly: true },
     { view: 'dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard',   adminOnly: true },
     { view: 'products',  icon: <Package size={18} />,         label: 'Produits',    adminOnly: true },

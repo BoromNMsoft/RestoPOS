@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './lib/supabase';
-import { Product, Category, CartItem, Sale, ViewType } from './types';
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { Product, Category, CartItem, Sale, ViewType, OrderType, Order } from './types';
+import { useAuth } from './hooks/useAuth';
 import Header from './components/Header';
 import ProductGrid from './components/ProductGrid';
 import CartPanel from './components/CartPanel';
@@ -11,14 +11,17 @@ import Dashboard from './components/Dashboard';
 import ProductManagement from './components/ProductManagement';
 import LoginScreen from './components/LoginScreen';
 import SettingsPanel from './components/SettingsPanel';
-import { ShieldAlert, LogOut } from 'lucide-react';
+import { ShieldAlert, LogOut, ClipboardList } from 'lucide-react';
 import CashierHistory from './components/CashierHistory';
 import CashClosure from './components/CashClosure';
-
-
+import OrderModal from './components/OrderModal';
+import OrdersView from './components/OrdersView';
+import { Navigate } from 'react-router-dom';
 
 function AppContent() {
   const { authUser, loading: authLoading, signOut: authSignOut } = useAuth();
+
+  const [showOrderModal, setShowOrderModal] = useState(false);
 
   const signOut = useCallback(async () => {
     setCurrentView('pos'); // ← reset la vue avant déconnexion
@@ -45,6 +48,8 @@ function AppContent() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+
 
   // Ajoute un wrapper pour setter
   const handleViewChange = useCallback((view: ViewType) => {
@@ -53,8 +58,7 @@ function AppContent() {
   }, []);
 
   // If cashier, force POS view
-  const effectiveView = authUser?.role === 'cashier' && !['pos', 'history'].includes(currentView) ? 'pos' : currentView;
-
+  const effectiveView = authUser?.role === 'cashier' && !['pos', 'history', 'orders'].includes(currentView) ? 'pos' : currentView;
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
@@ -64,17 +68,19 @@ function AppContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, prodRes, salesRes, stationsRes] = await Promise.all([
+     const [catRes, prodRes, salesRes, stationsRes, ordersRes] = await Promise.all([
         supabase.from('categories').select('*').order('sort_order'),
         supabase.from('products').select('*').order('name'),
         supabase.from('sales').select('*, items:sale_items(*)').order('created_at', { ascending: false }).limit(100),
         supabase.from('pos_stations').select('*, cashier_assignments(cashier_id, profiles(full_name))').order('created_at'),
+        supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false }).limit(200),
       ]);
 
       if (catRes.data) setCategories(catRes.data);
       if (prodRes.data) setProducts(prodRes.data);
       if (salesRes.data) setSales(salesRes.data as Sale[]);
       if (stationsRes.data) setStations(stationsRes.data);
+      if (ordersRes.data) setOrders(ordersRes.data as Order[]);
     } catch (e) {
       console.error('Fetch error:', e);
     } finally {
@@ -92,6 +98,7 @@ function AppContent() {
       setSales([]);
       setLoading(false);
       setStations([]);
+      setOrders([]);  // ← ajoutex
     }
   }, [authUser, fetchData]);
 
@@ -111,6 +118,7 @@ function AppContent() {
         { event: '*', schema: 'public', table: 'products' },
         () => fetchData()
       )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
       .subscribe();
 
     return () => {
@@ -212,6 +220,116 @@ function AppContent() {
     }
   }, [cart, cartTotal, authUser, fetchData]);
 
+  const handleCreateOrder = useCallback(async (orderData: {
+    order_type: OrderType;
+    customer_name: string;
+    customer_phone: string;
+    delivery_address: string;
+    note: string;
+  }) => {
+    if (cart.length === 0) return;
+
+    try {
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          order_type: orderData.order_type,
+          status: 'pending',
+          total: cartTotal,
+          customer_name: orderData.customer_name || null,
+          customer_phone: orderData.customer_phone || null,
+          delivery_address: orderData.delivery_address || null,
+          note: orderData.note || null,
+          cashier_id: authUser?.user.id,
+          cashier_name: authUser?.fullName,
+          station_id: authUser?.stationId,
+          station_name: authUser?.stationName,
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const orderItems = cart.map(item => ({
+        order_id: order.id,
+        product_id: item.product.id,
+        product_name: item.product.name,
+        quantity: item.quantity,
+        unit_price: item.product.price,
+        subtotal: item.product.price * item.quantity,
+      }));
+
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      if (itemsError) throw itemsError;
+
+      setCart([]);
+      setShowOrderModal(false);
+    } catch (e) {
+      console.error('Create order error:', e);
+      throw e;
+    }
+  }, [cart, cartTotal, authUser, fetchData]);
+
+
+  const handleCheckoutOrder = useCallback(async (order: Order, method: 'cash' | 'card') => {
+    try {
+      // 1. Crée la vente (montant = total, pas de monnaie)
+      const { data: sale, error: saleError } = await supabase
+        .from('sales')
+        .insert({
+          total: order.total,
+          amount_received: order.total,
+          change_given: 0,
+          payment_method: method,
+          note: order.note || null,
+          cashier_id: authUser?.user.id,
+          cashier_name: authUser?.fullName,
+          station_id: authUser?.stationId,
+          station_name: authUser?.stationName,
+        })
+        .select()
+        .single();
+      if (saleError) throw saleError;
+
+      // 2. Copie les articles de la commande vers la vente
+      const saleItems = (order.items ?? []).map(item => ({
+        sale_id: sale.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal,
+      }));
+      if (saleItems.length > 0) {
+        const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
+        if (itemsError) throw itemsError;
+      }
+
+      // 3. Décrémente le stock
+      for (const item of order.items ?? []) {
+        if (!item.product_id) continue;
+        const product = products.find(p => p.id === item.product_id);
+        if (product) {
+          await supabase
+            .from('products')
+            .update({ stock: Math.max(0, product.stock - item.quantity) })
+            .eq('id', item.product_id);
+        }
+      }
+
+      /// 4. Relie la commande à la vente (paiement) — SANS changer le statut cuisine
+      await supabase
+        .from('orders')
+        .update({ sale_id: sale.id, updated_at: new Date().toISOString() })
+        .eq('id', order.id);
+
+      fetchData();
+    } catch (e) {
+      console.error('Checkout order error:', e);
+      throw e;
+    }
+  }, [authUser, products, fetchData]);
+
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -229,6 +347,11 @@ function AppContent() {
         <LoginScreen />
       </div>
     );
+  }
+
+  // Super-admin n'a rien à faire dans l'app resto → redirection vers la console
+  if (authUser.role === 'super_admin') {
+    return <Navigate to="/console" replace />;
   }
 
   // ← Ajoute ce bloc juste après
@@ -272,6 +395,12 @@ function AppContent() {
         onSignOut={signOut} 
       />
 
+      {effectiveView === 'orders' && (
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <OrdersView onCheckoutOrder={handleCheckoutOrder} />
+        </div>
+      )}
+
       {effectiveView === 'pos' && (
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {/* Products section ~75% */}
@@ -297,6 +426,7 @@ function AppContent() {
             <Calculator
               total={cartTotal}
               onCashCheckout={handleCheckout}
+              onNewOrder={() => setShowOrderModal(true)}
               disabled={cart.length === 0}
             />
           </div>
@@ -311,7 +441,7 @@ function AppContent() {
 
       {effectiveView === 'dashboard' && (
         <div className="flex-1 min-h-0 overflow-hidden">
-          <Dashboard sales={sales} stations={stations} />
+          <Dashboard sales={sales} stations={stations} orders={orders} />
         </div>
       )}
       {effectiveView === 'products' && (
@@ -335,14 +465,17 @@ function AppContent() {
       {receiptSale && (
         <ReceiptModal sale={receiptSale} onClose={() => setReceiptSale(null)} />
       )}
+      {showOrderModal && (
+        <OrderModal
+          total={cartTotal}
+          onClose={() => setShowOrderModal(false)}
+          onConfirm={handleCreateOrder}
+        />
+      )}
     </div>
   );
 }
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AppContent />;
 }

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 
-export type UserRole = 'admin' | 'cashier';
+export type UserRole = 'super_admin' | 'admin' | 'cashier';
 
 export interface AuthUser {
   user: User;

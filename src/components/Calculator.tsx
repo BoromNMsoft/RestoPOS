@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingBag, CreditCard, Banknote, FileText } from 'lucide-react';
+import { ShoppingBag, CreditCard, Banknote, FileText, ClipboardList } from 'lucide-react';
 
 type PaymentMethod = 'cash' | 'card';
 
 interface CalculatorProps {
   total: number;
   onCashCheckout: (amountReceived: number, change: number, method: PaymentMethod, note: string) => void;
+  onNewOrder: () => void;
   disabled: boolean;
 }
 
-export default function Calculator({ total, onCashCheckout, disabled }: CalculatorProps) {
-  const [display, setDisplay] = useState('0');
+
+export default function Calculator({ total, onCashCheckout, onNewOrder, disabled }: CalculatorProps) {  const [display, setDisplay] = useState('0');
   const [change, setChange] = useState<number | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -134,11 +135,16 @@ export default function Calculator({ total, onCashCheckout, disabled }: Calculat
 
   if (!showCalculator) {
     return (
-      <div className="p-4 flex flex-col items-center justify-center gap-3 border-t border-gray-100 dark:border-gray-800">
-        <div className="w-full text-center mb-2">
-          <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{total.toFixed(2)} €</p>
-        </div>
+      <div className="px-4 pt-0 pb-4 flex flex-col gap-2 border-t border-gray-100 dark:border-gray-800">
+        <button
+          onClick={onNewOrder}
+          disabled={total <= 0}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 text-sm font-semibold hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <ClipboardList size={16} />
+          Nouvelle commande
+        </button>
+
         <button
           onClick={() => { setShowCalculator(true); resetTimer(); setDisplay('0'); setChange(null); }}
           disabled={total <= 0}
@@ -151,9 +157,6 @@ export default function Calculator({ total, onCashCheckout, disabled }: Calculat
           <ShoppingBag size={20} />
           Nouvelle Vente
         </button>
-        <p className="text-[10px] text-gray-400 dark:text-gray-600">
-          Ajoutez des produits puis cliquez ici pour encaisser
-        </p>
       </div>
     );
   }
