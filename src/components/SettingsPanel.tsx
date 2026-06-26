@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, UserCheck, UserX, Monitor, ShieldAlert, X, Check, User, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, UserCheck, UserX, Monitor, ShieldAlert, X, Check, User, Pencil, Eye, EyeOff, KeyRound, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { createCashier, updateCashier, deleteCashier } from '../lib/manageUser'
@@ -74,6 +74,46 @@ export default function SettingsPanel() {
   // Confirmations de suppression
   const [confirmDeleteCashier, setConfirmDeleteCashier] = useState<Cashier | null>(null);
   const [confirmDeleteStation, setConfirmDeleteStation] = useState<Station | null>(null);
+
+  // Mon compte — changement de mot de passe (admin lui-même)
+  const [myNewPassword, setMyNewPassword] = useState('');
+  const [myConfirmPassword, setMyConfirmPassword] = useState('');
+  const [showMyPasswordField, setShowMyPasswordField] = useState(false);
+  const [mySaving, setMySaving] = useState(false);
+  const [myError, setMyError] = useState<string | null>(null);
+  const [mySuccess, setMySuccess] = useState(false);
+
+  // View password (Mon compte)
+  const [showMyPwd1, setShowMyPwd1] = useState(false);
+  const [showMyPwd2, setShowMyPwd2] = useState(false);
+
+  const handleChangeMyPassword = async () => {
+    setMyError(null);
+    setMySuccess(false);
+
+    if (myNewPassword.length < 6) {
+      setMyError('Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    if (myNewPassword !== myConfirmPassword) {
+      setMyError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setMySaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: myNewPassword });
+      if (error) throw error;
+      setMySuccess(true);
+      setMyNewPassword('');
+      setMyConfirmPassword('');
+      setShowMyPasswordField(false);
+    } catch (e: any) {
+      setMyError(e?.message ?? 'Erreur lors du changement de mot de passe.');
+    } finally {
+      setMySaving(false);
+    }
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -217,6 +257,99 @@ export default function SettingsPanel() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Paramètres</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gestion des caissiers et points de vente</p>
+        </div>
+
+        {/* ── MON COMPTE ── */}
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+              <KeyRound size={18} className="text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Mon compte</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{authUser?.fullName} · {authUser?.phone}</p>
+            </div>
+          </div>
+
+          {!showMyPasswordField ? (
+            <button
+              onClick={() => { setShowMyPasswordField(true); setMyError(null); setMySuccess(false); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <KeyRound size={14} /> Changer mon mot de passe
+            </button>
+          ) : (
+            <div className="space-y-3 max-w-sm">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nouveau mot de passe</label>
+                <div className="relative">
+                  <input
+                    type={showMyPwd1 ? 'text' : 'password'}
+                    value={myNewPassword}
+                    onChange={e => setMyNewPassword(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMyPwd1(v => !v)}
+                    className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {showMyPwd1 ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Confirmer le mot de passe</label>
+                <div className="relative">
+                  <input
+                    type={showMyPwd2 ? 'text' : 'password'}
+                    value={myConfirmPassword}
+                    onChange={e => setMyConfirmPassword(e.target.value)}
+                    className="mt-1 w-full px-3 py-2.5 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMyPwd2(v => !v)}
+                    className="absolute right-3 top-1/2 mt-0.5 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {showMyPwd2 ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {myError && (
+                <div className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  {myError}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => { setShowMyPasswordField(false); setMyNewPassword(''); setMyConfirmPassword(''); setMyError(null); setShowMyPwd1(false); setShowMyPwd2(false); }}
+                  disabled={mySaving}
+                  className="px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleChangeMyPassword}
+                  disabled={mySaving || !myNewPassword || !myConfirmPassword}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  <Check size={14} />
+                  {mySaving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mySuccess && (
+            <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm">
+              <CheckCircle2 size={15} /> Mot de passe mis à jour avec succès.
+            </div>
+          )}
         </div>
 
         {/* Tabs */}

@@ -11,6 +11,7 @@ export interface AuthUser {
   phone?: string;           // ← ajouté
   restaurantName?: string;        // ← ajoute
   restaurantLogo?: string | null; // ← ajoute
+  restaurantSuspended?: boolean;  // ← ajoute
   stationName?: string;
   stationId?: string;
   stationActive?: boolean;
@@ -65,14 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ← récupère le resto courant
     let restaurantName: string | undefined;
     let restaurantLogo: string | null | undefined;
+    let restaurantSuspended = false;  // ← ajoute
     if (data.restaurant_id) {
       const { data: resto } = await supabase
         .from('restaurants')
-        .select('name, logo_url')
+        .select('name, logo_url, is_suspended')  // ← + is_suspended
         .eq('id', data.restaurant_id)
         .single();
       restaurantName = resto?.name ?? undefined;
       restaurantLogo = resto?.logo_url ?? null;
+      restaurantSuspended = resto?.is_suspended ?? false;  // ← ajoute
     }
 
     return {
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: data.phone ?? undefined,  // ← ajoute
       restaurantName,   // ←
       restaurantLogo,   // ←
+      restaurantSuspended,  // ← ajoute
       stationId: assignment?.station_id ?? null,
       stationName: (assignment?.pos_stations as any)?.name ?? null,
       stationActive: (assignment?.pos_stations as any)?.is_active ?? null,
@@ -101,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: profile?.phone ?? undefined,  // ← ajoute
         restaurantName: profile?.restaurantName ?? undefined,   // ← ajoute
         restaurantLogo: profile?.restaurantLogo ?? null,        // ← ajoute
+        restaurantSuspended: profile?.restaurantSuspended ?? false,  // ← celui-ci est souvent oublié
         stationId: profile?.stationId ?? undefined,
         stationName: profile?.stationName ?? undefined,
         stationActive: profile?.stationActive ?? undefined,

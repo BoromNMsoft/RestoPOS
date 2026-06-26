@@ -114,7 +114,7 @@ export default function OrderModal({ total, onClose, onConfirm }: OrderModalProp
           {/* Total */}
           <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800">
             <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total commande</span>
-            <span className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{total.toFixed(2)} €</span>
+            <span className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{total.toFixed(2)} MRU</span>
           </div>
 
           {error && (

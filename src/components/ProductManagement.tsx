@@ -443,7 +443,7 @@ export default function ProductManagement({ products, categories, onRefetch }: P
                     </div>
                   </div>
 
-                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums shrink-0">{product.price.toFixed(2)} €</span>
+                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums shrink-0">{product.price.toFixed(2)} MRU</span>
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -554,7 +554,7 @@ export default function ProductManagement({ products, categories, onRefetch }: P
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Prix (€)</label>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Prix (MRU)</label>
                   <input
                     type="number"
                     step="0.01"

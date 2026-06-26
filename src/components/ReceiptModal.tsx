@@ -29,8 +29,8 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
       <tr>
         <td>${item.product_name}</td>
         <td class="center">${item.quantity}</td>
-        <td class="right">${item.unit_price.toFixed(2)} €</td>
-        <td class="right">${item.subtotal.toFixed(2)} €</td>
+        <td class="right">${item.unit_price.toFixed(2)} MRU</td>
+        <td class="right">${item.subtotal.toFixed(2)} MRU</td>
       </tr>
     `).join('') || '';
   
@@ -221,15 +221,15 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           </div>
           <div class="summary-row">
             <span>Montant reçu</span>
-            <span>${sale.amount_received.toFixed(2)} €</span>
+            <span>${sale.amount_received.toFixed(2)} MRU</span>
           </div>
           <div class="summary-row change">
             <span>Monnaie rendue</span>
-            <span>${sale.change_given.toFixed(2)} €</span>
+            <span>${sale.change_given.toFixed(2)} MRU</span>
           </div>
           <div class="summary-row total">
             <span>TOTAL</span>
-            <span>${sale.total.toFixed(2)} €</span>
+            <span>${sale.total.toFixed(2)} MRU</span>
           </div>
         </div>
   
@@ -263,10 +263,8 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
-        {/* Success header */}
-        <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-5 text-white text-center">
-          <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-2">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">        {/* Success header */}
+        <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-5 text-white text-center shrink-0">          <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-2">
             <Check size={24} />
           </div>
           <h2 className="text-xl font-bold">Paiement accepté !</h2>
@@ -274,7 +272,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
         </div>
 
         {/* Receipt */}
-        <div ref={receiptRef} className="px-6 py-4">
+        <div ref={receiptRef} className="px-6 py-4 overflow-y-auto flex-1 min-h-0">
           <div className="text-center mb-3">
             {restaurantLogo && (
               <img src={restaurantLogo} alt={restaurantName} className="w-10 h-10 rounded-lg object-cover mx-auto mb-1.5" />
@@ -299,7 +297,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
                 <tr key={item.id} className="text-gray-900 dark:text-white">
                   <td className="py-1">{item.product_name}</td>
                   <td className="py-1 text-center">{item.quantity}</td>
-                  <td className="py-1 text-right tabular-nums">{item.subtotal.toFixed(2)} €</td>
+                  <td className="py-1 text-right tabular-nums">{item.subtotal.toFixed(2)} MRU</td>
                 </tr>
               ))}
             </tbody>
@@ -310,15 +308,15 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
               <span>Total</span>
-              <span className="font-bold text-gray-900 dark:text-white tabular-nums">{sale.total.toFixed(2)} €</span>
+              <span className="font-bold text-gray-900 dark:text-white tabular-nums">{sale.total.toFixed(2)} MRU</span>
             </div>
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
               <span>Reçu</span>
-              <span className="tabular-nums">{sale.amount_received.toFixed(2)} €</span>
+              <span className="tabular-nums">{sale.amount_received.toFixed(2)} MRU</span>
             </div>
             <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
               <span>Monnaie rendue</span>
-              <span className="tabular-nums">{sale.change_given.toFixed(2)} €</span>
+              <span className="tabular-nums">{sale.change_given.toFixed(2)} MRU</span>
             </div>
           </div>
 
@@ -335,7 +333,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
         </div>
 
         {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3">
+        <div className="px-6 pb-6 pt-3 flex gap-3 shrink-0 border-t border-gray-100 dark:border-gray-800">
           <button
             onClick={handlePrint}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
