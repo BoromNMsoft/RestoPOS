@@ -250,7 +250,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Encaissé</p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{stationTotal.toFixed(2)} €</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{stationTotal.toFixed(2)} MRU</p>
                 <p className="text-xs text-gray-400">{stationSales.length} transaction(s)</p>
               </div>
               <button
@@ -265,7 +265,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
 
         {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={<Euro size={20} />} label="Chiffre d'affaires" value={`${stats.totalRevenue.toFixed(2)} €`} trend={+12.5} color="amber" />
+          <StatCard icon={<Euro size={20} />} label="Chiffre d'affaires" value={`${stats.totalRevenue.toFixed(2)} MRU`} trend={+12.5} color="amber" />
           <StatCard icon={<ShoppingBag size={20} />} label="Transactions" value={stats.totalTransactions.toString()} trend={+8.2} color="blue" />
           <StatCard icon={<ClipboardList size={20} />} label="Commandes (payées)" value={orderStats.paidCount.toString()} trend={0}color="emerald"/>          <StatCard icon={<Clock size={20} />} label="Dernière vente" value={stats.lastSale ? new Date(stats.lastSale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '--:--'} trend={0} color="purple" />
         </div>
@@ -346,12 +346,12 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                     <span className="text-xs text-gray-600 dark:text-gray-300">Commandes</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.orderRevenue.toFixed(2)} €</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.orderRevenue.toFixed(2)} MRU</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
                     <span className="text-xs text-gray-600 dark:text-gray-300">Ventes directes</span>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.directRevenue.toFixed(2)} €</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{orderStats.directRevenue.toFixed(2)} MRU</span>
                   </div>
                 </div>
               </>
@@ -373,7 +373,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                     <div className="w-full flex flex-col justify-end relative group" style={{ height: '140px' }}>
                       {d.value > 0 && (
                         <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] font-medium px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                          {d.value.toFixed(0)} €
+                          {d.value.toFixed(0)} MRU
                         </div>
                       )}
                       <div
@@ -422,7 +422,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{sale.total.toFixed(2)} €</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{sale.total.toFixed(2)} MRU</span>
                 </div>
               ))
             )}
@@ -436,10 +436,10 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
             onClick={() => setSelectedSale(null)}
           >
             <div
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                     Transaction {formatSaleId(selectedSale)}
@@ -459,7 +459,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
               </div>
 
               {(selectedSale.cashier_name || selectedSale.station_name) && (
-                <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 text-xs">
+                <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 text-xs shrink-0">
                   {selectedSale.cashier_name && (
                     <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
                       <User size={12} />
@@ -475,7 +475,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                 </div>
               )}
 
-              <div className="px-6 py-4">
+              <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Articles vendus</p>
                 <div className="space-y-2">
                   {selectedSale.items && selectedSale.items.length > 0 ? (
@@ -488,8 +488,8 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                           <span className="text-sm text-gray-900 dark:text-white">{item.product_name}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{item.subtotal.toFixed(2)} €</span>
-                          <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} € / unité</p>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{item.subtotal.toFixed(2)} MRU</span>
+                          <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} MRU / unité</p>
                         </div>
                       </div>
                     ))
@@ -499,7 +499,7 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                 </div>
               </div>
 
-              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl space-y-2">
+              <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl space-y-2 shrink-0">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Paiement</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Moyen de paiement</span>
@@ -509,15 +509,15 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Montant reçu</span>
-                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedSale.amount_received.toFixed(2)} €</span>
+                  <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedSale.amount_received.toFixed(2)} MRU</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Monnaie rendue</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{selectedSale.change_given.toFixed(2)} €</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{selectedSale.change_given.toFixed(2)} MRU</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                  <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums text-base">{selectedSale.total.toFixed(2)} €</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums text-base">{selectedSale.total.toFixed(2)} MRU</span>
                 </div>
               </div>
             </div>
@@ -579,7 +579,7 @@ function TopProducts({ sales }: { sales: Sale[] }) {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-medium text-gray-900 dark:text-white">{p.name}</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{p.revenue.toFixed(2)} €</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">{p.revenue.toFixed(2)} MRU</span>
             </div>
             <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500" style={{ width: `${(p.revenue / maxRevenue) * 100}%` }} />

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { createPos } from '../lib/createPos';
+import { uploadLogo } from '../lib/uploadLogo';
 import {
   LayoutGrid, Store, Users, Euro, Plus, Moon, Sun, LogOut, Shield,
   Building2, Calendar, TrendingUp, X, Check, Phone, Eye, EyeOff, User,
-  Pencil, Upload, Link2, ImageOff,
+  Pencil, Upload, Link2, ImageOff, ShieldOff, ShieldCheck, AlertTriangle,
 } from 'lucide-react';
-import { uploadLogo } from '../lib/uploadLogo';
 
 interface SuperAdminConsoleProps {
   fullName: string;
@@ -19,6 +19,7 @@ interface Restaurant {
   id: string;
   name: string;
   logo_url: string | null;
+  is_suspended: boolean;
   created_at: string;
 }
 
@@ -39,6 +40,25 @@ export default function SuperAdminConsole({ fullName, darkMode, onToggleDark, on
   const [showCreate, setShowCreate] = useState(false);
   // Modale édition (le resto en cours d'édition, ou null)
   const [editing, setEditing] = useState<Restaurant | null>(null);
+  // Confirmation suspension/réactivation
+  const [confirmSuspend, setConfirmSuspend] = useState<Restaurant | null>(null);
+  const [suspending, setSuspending] = useState(false);
+
+  const toggleSuspend = async (resto: Restaurant) => {
+    setSuspending(true);
+    try {
+      await supabase
+        .from('restaurants')
+        .update({ is_suspended: !resto.is_suspended })
+        .eq('id', resto.id);
+      setConfirmSuspend(null);
+      fetchData();
+    } catch (e) {
+      console.error('Toggle suspend error:', e);
+    } finally {
+      setSuspending(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -170,25 +190,47 @@ export default function SuperAdminConsole({ fullName, darkMode, onToggleDark, on
               {restaurants.map(resto => {
                 const s = statsByResto[resto.id] ?? { staff: 0, cashiers: 0, admins: 0, revenue: 0, salesCount: 0 };
                 return (
-                  <div key={resto.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-shadow">
+                  <div key={resto.id} className={`bg-white dark:bg-gray-800 rounded-2xl border p-5 hover:shadow-md transition-shadow ${
+                    resto.is_suspended ? 'border-red-200 dark:border-red-900/40' : 'border-gray-100 dark:border-gray-700'
+                  }`}>
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Logo ou fallback */}
-                        {resto.logo_url ? (
-                          <img src={resto.logo_url} alt={resto.name} className="w-12 h-12 rounded-xl object-cover shadow-md bg-white" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md">
-                            <Store size={22} className="text-white" />
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="text-base font-bold text-gray-900 dark:text-white">{resto.name}</h3>
-                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                            <Calendar size={11} />
-                            Créé le {new Date(resto.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                          </p>
+                    <div className="flex items-center gap-3">
+                      {/* Logo ou fallback */}
+                      {resto.logo_url ? (
+                        <img src={resto.logo_url} alt={resto.name} className={`w-12 h-12 rounded-xl object-cover shadow-md bg-white ${resto.is_suspended ? 'opacity-50' : ''}`} />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md ${resto.is_suspended ? 'opacity-50' : ''}`}>
+                          <Store size={22} className="text-white" />
                         </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-bold text-gray-900 dark:text-white">{resto.name}</h3>
+                          {resto.is_suspended && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400">
+                              <ShieldOff size={11} /> Suspendu
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                          <Calendar size={11} />
+                          Créé le {new Date(resto.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </p>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {/* Bouton suspendre/réactiver */}
+                      <button
+                        onClick={() => setConfirmSuspend(resto)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          resto.is_suspended
+                            ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            : 'text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                        }`}
+                        title={resto.is_suspended ? 'Réactiver' : 'Suspendre'}
+                      >
+                        {resto.is_suspended ? <ShieldCheck size={15} /> : <ShieldOff size={15} />}
+                      </button>
                       {/* Bouton éditer */}
                       <button
                         onClick={() => setEditing(resto)}
@@ -198,23 +240,24 @@ export default function SuperAdminConsole({ fullName, darkMode, onToggleDark, on
                         <Pencil size={15} />
                       </button>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                      <div>
-                        <p className="text-xs text-gray-400 flex items-center gap-1"><Users size={11} /> Personnel</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{s.staff}</p>
-                        <p className="text-[10px] text-gray-400">{s.admins} admin · {s.cashiers} caissier(s)</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 flex items-center gap-1"><TrendingUp size={11} /> Ventes</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{s.salesCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400 flex items-center gap-1"><Euro size={11} /> CA</p>
-                        <p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">{s.revenue.toFixed(0)} €</p>
-                      </div>
+                  <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <div>
+                      <p className="text-xs text-gray-400 flex items-center gap-1"><Users size={11} /> Personnel</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{s.staff}</p>
+                      <p className="text-[10px] text-gray-400">{s.admins} admin · {s.cashiers} caissier(s)</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 flex items-center gap-1"><TrendingUp size={11} /> Ventes</p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{s.salesCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 flex items-center gap-1"><Euro size={11} /> CA</p>
+                      <p className="text-lg font-bold text-amber-600 dark:text-amber-400 mt-0.5 tabular-nums">{s.revenue.toFixed(0)} €</p>
                     </div>
                   </div>
+                </div>
                 );
               })}
             </div>
@@ -237,6 +280,53 @@ export default function SuperAdminConsole({ fullName, darkMode, onToggleDark, on
           onClose={() => setEditing(null)}
           onDone={() => { setEditing(null); fetchData(); }}
         />
+      )}
+
+      {/* Modale confirmation suspension/réactivation */}
+      {confirmSuspend && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm animate-slide-up">
+            <div className="px-6 py-5">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${
+                confirmSuspend.is_suspended ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-red-50 dark:bg-red-900/20'
+              }`}>
+                {confirmSuspend.is_suspended
+                  ? <ShieldCheck size={22} className="text-emerald-600 dark:text-emerald-400" />
+                  : <AlertTriangle size={22} className="text-red-500" />
+                }
+              </div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {confirmSuspend.is_suspended ? `Réactiver ${confirmSuspend.name} ?` : `Suspendre ${confirmSuspend.name} ?`}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {confirmSuspend.is_suspended
+                  ? "L'admin et les caissiers retrouveront l'accès normalement. Aucune donnée n'a été perdue."
+                  : "L'admin et les caissiers ne pourront plus se connecter. Toutes les données (ventes, produits, historique) restent intactes et seront accessibles dès la réactivation."
+                }
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmSuspend(null)}
+                disabled={suspending}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => toggleSuspend(confirmSuspend)}
+                disabled={suspending}
+                className={`px-5 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg transition-all active:scale-95 disabled:opacity-50 ${
+                  confirmSuspend.is_suspended
+                    ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25'
+                    : 'bg-red-500 hover:bg-red-600 shadow-red-500/25'
+                }`}
+              >
+                {suspending ? 'Patientez...' : confirmSuspend.is_suspended ? 'Réactiver' : 'Suspendre'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -130,7 +130,7 @@ export default function ProductGrid({ products, categories, cart, onAddToCart, l
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
                   <div className="flex items-center justify-between mt-1">
                     <span className={`text-base font-bold ${outOfStock ? 'text-gray-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                      {product.price.toFixed(2)} €
+                      {product.price.toFixed(2)} MRU
                     </span>
                     {!outOfStock && product.stock > 0 && product.stock < 10 && (
                       <span className="text-[10px] text-orange-500 font-medium">{product.stock} rest.</span>

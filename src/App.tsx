@@ -354,6 +354,29 @@ function AppContent() {
     return <Navigate to="/console" replace />;
   }
 
+  if (authUser.restaurantSuspended) {
+    return (
+      <div className={`h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}>
+        <div className="text-center p-8 max-w-md">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mb-4">
+            <ShieldAlert size={32} className="text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Accès suspendu</h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+            L'accès à ce POS a été temporairement suspendu. Merci de contacter le support.
+          </p>
+          <button
+            onClick={signOut}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-semibold mx-auto hover:bg-gray-500 transition-colors"
+          >
+            <LogOut size={16} />
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ← Ajoute ce bloc juste après
   if (authUser.role === 'cashier' && (!authUser.stationId || authUser.stationActive === false)) {
     const isInactive = authUser.stationId && authUser.stationActive === false;

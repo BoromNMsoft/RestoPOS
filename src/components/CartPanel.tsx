@@ -40,7 +40,7 @@ export default function CartPanel({ cart, onUpdateQuantity, onRemoveItem, onClea
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.product.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{item.product.price.toFixed(2)} €</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{item.product.price.toFixed(2)} MRU</p>
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -61,7 +61,7 @@ export default function CartPanel({ cart, onUpdateQuantity, onRemoveItem, onClea
             </div>
 
             <div className="w-16 text-right">
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">{(item.product.price * item.quantity).toFixed(2)} €</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">{(item.product.price * item.quantity).toFixed(2)} MRU</span>
             </div>
 
             <button
@@ -77,7 +77,7 @@ export default function CartPanel({ cart, onUpdateQuantity, onRemoveItem, onClea
       <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total</span>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">{total.toFixed(2)} €</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">{total.toFixed(2)} MRU</span>
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{cart.reduce((s, i) => s + i.quantity, 0)} article(s)</p>
       </div>

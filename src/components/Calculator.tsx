@@ -196,13 +196,13 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
               {paymentMethod === 'card' ? 'Paiement CB' : 'Montant reçu'}
             </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
-              {paymentMethod === 'card' ? `${total.toFixed(2)} €` : `${display} €`}
+              {paymentMethod === 'card' ? `${total.toFixed(2)} MRU` : `${display} MRU`}
             </p>
           </div>
           {paymentMethod === 'cash' && change !== null && (
             <div className="text-right">
               <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Monnaie</p>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{change.toFixed(2)} €</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{change.toFixed(2)} MRU</p>
             </div>
           )}
           {paymentMethod === 'card' && (
@@ -221,7 +221,7 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
               <button key={a} onClick={() => handleQuickAmount(a)}
                 className="py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                {a} €
+                {a} MRU
               </button>
             ))}
           </div>
@@ -295,7 +295,7 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
           }`}
         >
           {paymentMethod === 'card' ? <CreditCard size={18} /> : <Banknote size={18} />}
-          {paymentMethod === 'card' ? `CB · ${total.toFixed(2)} €` : `Encaisser ${total > 0 ? `${total.toFixed(2)} €` : ''}`}
+          {paymentMethod === 'card' ? `CB · ${total.toFixed(2)} MRU` : `Encaisser ${total > 0 ? `${total.toFixed(2)} MRU` : ''}`}
         </button>
       </div>
     </div>

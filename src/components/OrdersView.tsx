@@ -329,7 +329,7 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
                         {order.items?.map(item => (
                           <div key={item.id} className="flex justify-between">
                             <span>{item.quantity}× {item.product_name}</span>
-                            <span className="tabular-nums text-gray-400">{item.subtotal.toFixed(2)} €</span>
+                            <span className="tabular-nums text-gray-400">{item.subtotal.toFixed(2)} MRU</span>
                           </div>
                         ))}
                       </div>
@@ -359,7 +359,7 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
                     </div>
 
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{order.total.toFixed(2)} €</p>
+                      <p className="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{order.total.toFixed(2)} MRU</p>
                     </div>
                   </div>
 
@@ -417,7 +417,7 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
             <div className="px-6 py-5 space-y-5">
               <div className="text-center">
                 <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider">Montant à encaisser</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white tabular-nums mt-1">{payingOrder.total.toFixed(2)} €</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white tabular-nums mt-1">{payingOrder.total.toFixed(2)} MRU</p>
               </div>
 
               <div>

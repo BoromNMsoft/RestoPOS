@@ -232,7 +232,7 @@ export default function CashClosure() {
                     Clôture déjà effectuée pour ce poste et cette date
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                    Par {existingClosure.closed_by_name} · Montant compté : {existingClosure.counted_amount.toFixed(2)} € · Écart : {existingClosure.difference >= 0 ? '+' : ''}{existingClosure.difference.toFixed(2)} €
+                    Par {existingClosure.closed_by_name} · Montant compté : {existingClosure.counted_amount.toFixed(2)} MRU · Écart : {existingClosure.difference >= 0 ? '+' : ''}{existingClosure.difference.toFixed(2)} MRU
                   </p>
                 </div>
               </div>
@@ -252,12 +252,12 @@ export default function CashClosure() {
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Montant théorique</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.theoretical.toFixed(2)} €</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">{stats.theoretical.toFixed(2)} MRU</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Panier moyen</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
-                      {stats.transactions > 0 ? (stats.theoretical / stats.transactions).toFixed(2) : '0.00'} €
+                      {stats.transactions > 0 ? (stats.theoretical / stats.transactions).toFixed(2) : '0.00'} MRU
                     </p>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export default function CashClosure() {
                             </div>
                           </div>
                           <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-                            {c.total.toFixed(2)} €
+                            {c.total.toFixed(2)} MRU
                           </span>
                         </div>
                       ))}
@@ -297,7 +297,7 @@ export default function CashClosure() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Montant compté dans le tiroir (€)
+                        Montant compté dans le tiroir (MRU)
                       </label>
                       <input
                         type="number"
@@ -340,7 +340,7 @@ export default function CashClosure() {
                             ? 'text-red-500'
                             : 'text-blue-500'
                         }`}>
-                          {stats.difference >= 0 ? '+' : ''}{stats.difference.toFixed(2)} €
+                          {stats.difference >= 0 ? '+' : ''}{stats.difference.toFixed(2)} MRU
                         </span>
                       </div>
                     )}
@@ -420,7 +420,7 @@ export default function CashClosure() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-                        {closure.theoretical_amount.toFixed(2)} €
+                        {closure.theoretical_amount.toFixed(2)} MRU
                       </p>
                       <p className={`text-xs font-semibold tabular-nums ${
                         Math.abs(closure.difference) < 0.01
@@ -429,7 +429,7 @@ export default function CashClosure() {
                           ? 'text-red-500'
                           : 'text-blue-500'
                       }`}>
-                        {closure.difference >= 0 ? '+' : ''}{closure.difference.toFixed(2)} €
+                        {closure.difference >= 0 ? '+' : ''}{closure.difference.toFixed(2)} MRU
                       </p>
                     </div>
                   </div>
@@ -470,11 +470,11 @@ export default function CashClosure() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Montant théorique</span>
-                <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedClosure.theoretical_amount.toFixed(2)} €</span>
+                <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedClosure.theoretical_amount.toFixed(2)} MRU</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Montant compté</span>
-                <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedClosure.counted_amount.toFixed(2)} €</span>
+                <span className="font-semibold text-gray-900 dark:text-white tabular-nums">{selectedClosure.counted_amount.toFixed(2)} MRU</span>
               </div>
               <div className={`flex justify-between text-sm pt-2 border-t border-gray-100 dark:border-gray-800`}>
                 <span className="font-bold text-gray-900 dark:text-white">Écart</span>
@@ -485,7 +485,7 @@ export default function CashClosure() {
                     ? 'text-red-500'
                     : 'text-blue-500'
                 }`}>
-                  {selectedClosure.difference >= 0 ? '+' : ''}{selectedClosure.difference.toFixed(2)} €
+                  {selectedClosure.difference >= 0 ? '+' : ''}{selectedClosure.difference.toFixed(2)} MRU
                 </span>
               </div>
               {selectedClosure.notes && (

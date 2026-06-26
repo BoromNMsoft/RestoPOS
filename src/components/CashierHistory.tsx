@@ -95,7 +95,7 @@ export default function CashierHistory() {
               <Euro size={18} className="text-amber-600 dark:text-amber-400" />
             </div>
             <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">
-              {stats.totalRevenue.toFixed(2)} €
+              {stats.totalRevenue.toFixed(2)} MRU
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total encaissé</p>
           </div>
@@ -113,7 +113,7 @@ export default function CashierHistory() {
               <TrendingUp size={18} className="text-emerald-600 dark:text-emerald-400" />
             </div>
             <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">
-              {stats.avgTicket.toFixed(2)} €
+              {stats.avgTicket.toFixed(2)} MRU
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Panier moyen</p>
           </div>
@@ -164,7 +164,7 @@ export default function CashierHistory() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
-                      {sale.total.toFixed(2)} €
+                      {sale.total.toFixed(2)} MRU
                     </p>
                     <p className="text-xs text-gray-400">
                       {sale.payment_method === 'cash' ? 'Espèces' : 'Carte'}
@@ -225,9 +225,9 @@ export default function CashierHistory() {
                     </div>
                     <div className="text-right">
                       <span className="text-sm font-semibold text-gray-900 dark:text-white tabular-nums">
-                        {item.subtotal.toFixed(2)} €
+                        {item.subtotal.toFixed(2)} MRU
                       </span>
-                      <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} € / unité</p>
+                      <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} MRU / unité</p>
                     </div>
                   </div>
                 ))}
@@ -244,19 +244,19 @@ export default function CashierHistory() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Montant reçu</span>
                 <span className="font-semibold text-gray-900 dark:text-white tabular-nums">
-                  {selectedSale.amount_received.toFixed(2)} €
+                  {selectedSale.amount_received.toFixed(2)} MRU
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Monnaie rendue</span>
                 <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {selectedSale.change_given.toFixed(2)} €
+                  {selectedSale.change_given.toFixed(2)} MRU
                 </span>
               </div>
               <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="font-bold text-gray-900 dark:text-white">Total</span>
                 <span className="font-bold text-amber-600 dark:text-amber-400 tabular-nums text-base">
-                  {selectedSale.total.toFixed(2)} €
+                  {selectedSale.total.toFixed(2)} MRU
                 </span>
               </div>
             </div>
