@@ -37,6 +37,8 @@ export interface Sale {
   station_name?: string;
   items?: SaleItem[];
   note?: string;
+  order_type?: OrderType;
+  is_from_order?: boolean;
 }
 
 export interface SaleItem {

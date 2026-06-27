@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { UtensilsCrossed, Eye, EyeOff, LogIn, Phone } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
+// Lit le dernier resto mémorisé (après une 1re connexion sur cet appareil)
+function getLastResto(): { name: string; logo: string | null } | null {
+  try {
+    const raw = localStorage.getItem('lastResto');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const [phone, setPhone] = useState('');
@@ -9,6 +20,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const lastResto = getLastResto();
 
   const handlePhoneChange = (value: string) => {
     // Garde uniquement les chiffres
@@ -31,21 +44,34 @@ export default function LoginScreen() {
     }
   };
 
-  const fillDemo = (demoPhone: string, demoPassword: string) => {
-    setPhone(demoPhone);
-    setPassword(demoPassword);
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-950 to-black p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo + nom du resto */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-500/30 mb-4">
-            <UtensilsCrossed size={28} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">RestoPOS</h1>
-          <p className="text-gray-400 mt-2 text-sm">Système de caisse restaurant</p>
+          {lastResto?.logo ? (
+            <img
+              src={lastResto.logo}
+              alt={lastResto.name}
+              className="w-16 h-16 mx-auto rounded-2xl object-cover shadow-xl shadow-amber-500/30 mb-4"
+            />
+          ) : (
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-xl shadow-amber-500/30 mb-4">
+              <UtensilsCrossed size={28} className="text-white" />
+            </div>
+          )}
+          {lastResto?.name ? (
+            <>
+              <h1 className="text-3xl font-bold text-white tracking-tight">{lastResto.name}</h1>
+              <p className="text-gray-400 mt-2 text-sm">Bienvenue — connectez-vous pour continuer</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-white tracking-tight">Caissio App</h1>
+              <p className="text-gray-400 mt-2 text-sm">Système de caisse restaurant</p>
+            </>
+          )}
         </div>
 
         {/* Login card */}
@@ -113,26 +139,7 @@ export default function LoginScreen() {
             </button>
           </form>
 
-          {/* Demo accounts */}
-          <div className="mt-6 pt-5 border-t border-white/10">
-            <p className="text-xs text-gray-500 mb-3 text-center">Comptes de démonstration</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => fillDemo('787829227', 'admin123')}
-                className="px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors text-left"
-              >
-                <span className="block font-semibold">Admin</span>
-                <span className="text-amber-500/70">Accès complet</span>
-              </button>
-              <button
-                onClick={() => fillDemo('787829228', 'caissier123')}
-                className="px-3 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-colors text-left"
-              >
-                <span className="block font-semibold">Caissier</span>
-                <span className="text-blue-500/70">Accès restreint</span>
-              </button>
-            </div>
-          </div>
+         
         </div>
       </div>
     </div>

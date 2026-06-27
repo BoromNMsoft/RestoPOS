@@ -458,6 +458,24 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                 </button>
               </div>
 
+              {/* Origine + type de la transaction */}
+              <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2 shrink-0">
+                {selectedSale.is_from_order ? (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+                    <ClipboardList size={12} /> Commande
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
+                    <ShoppingBag size={12} /> Vente directe
+                  </span>
+                )}
+                {selectedSale.order_type && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    {ORDER_TYPE_LABELS[selectedSale.order_type]}
+                  </span>
+                )}
+              </div>
+
               {(selectedSale.cashier_name || selectedSale.station_name) && (
                 <div className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-4 text-xs shrink-0">
                   {selectedSale.cashier_name && (

@@ -18,6 +18,7 @@ interface Station {
   name: string;
   description: string | null;
   is_active: boolean;
+  is_main: boolean;   // ← ajoute
 }
 
 interface Assignment {
@@ -124,7 +125,7 @@ export default function SettingsPanel() {
         supabase.from('cashier_assignments').select('*'),
       ]);
       if (cashiersRes.data) setCashiers(cashiersRes.data);
-      if (stationsRes.data) setStations(stationsRes.data);
+      if (stationsRes.data) setStations(stationsRes.data.filter(s => !s.is_main));
       if (assignmentsRes.data) setAssignments(assignmentsRes.data);
     } finally {
       setLoading(false);

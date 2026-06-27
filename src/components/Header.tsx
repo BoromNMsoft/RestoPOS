@@ -7,12 +7,13 @@ interface HeaderProps {
   darkMode: boolean;
   onToggleDark: () => void;
   cartCount: number;
+  ordersCount: number;   // ← ajoute
   onSignOut: () => void; // ← ajoute
   restaurantName?: string;        // ← ajoute
   restaurantLogo?: string | null; // ← ajoute
 }
-
-export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount, onSignOut, restaurantName, restaurantLogo }: HeaderProps) {  const { authUser} = useAuth();
+export default function Header({ currentView, onViewChange, darkMode, onToggleDark, cartCount, ordersCount, onSignOut, restaurantName, restaurantLogo }: HeaderProps) {
+  const { authUser} = useAuth();
   const role = authUser?.role as UserRole | null;
 
   const navItems: { view: ViewType; icon: React.ReactNode; label: string; adminOnly?: boolean; cashierOnly?: boolean }[] = [
@@ -68,6 +69,11 @@ export default function Header({ currentView, onViewChange, darkMode, onToggleDa
             {view === 'pos' && cartCount > 0 && (
               <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-amber-500 text-white font-bold min-w-[20px] text-center animate-pulse">
                 {cartCount}
+              </span>
+            )}
+            {view === 'orders' && ordersCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-amber-500 text-white font-bold min-w-[20px] text-center animate-pulse">
+                {ordersCount}
               </span>
             )}
           </button>
