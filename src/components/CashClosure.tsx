@@ -31,6 +31,7 @@ interface Closure {
 
 export default function CashClosure() {
   const { authUser } = useAuth();
+  const isAdmin = authUser?.role === 'admin';
 
   const [stations, setStations] = useState<Station[]>([]);
   const [selectedStation, setSelectedStation] = useState<string>('');
@@ -52,9 +53,13 @@ export default function CashClosure() {
     const { data } = await supabase.from('pos_stations').select('id, name').eq('is_active', true);
     if (data) {
       setStations(data);
-      if (data.length > 0) setSelectedStation(data[0].id);
+      if (isAdmin && authUser?.stationId) {
+        setSelectedStation(authUser.stationId);
+      } else if (data.length > 0) {
+        setSelectedStation(data[0].id);
+      }
     }
-  }, []);
+  }, [isAdmin, authUser?.stationId]);
 
   // Fetch ventes pour la clôture
   const fetchSales = useCallback(async () => {
@@ -194,21 +199,22 @@ export default function CashClosure() {
             {/* Sélecteurs */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Point de vente
-                </label>
-                <div className="relative mt-2">
-                  <select
-                    value={selectedStation}
-                    onChange={e => setSelectedStation(e.target.value)}
-                    className="w-full appearance-none px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 pr-8"
-                  >
-                    {stations.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
+               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Point de vente
+              </label>
+              <div className="relative mt-2">
+                <select
+                  value={selectedStation}
+                  onChange={e => setSelectedStation(e.target.value)}
+                  className="w-full appearance-none px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 pr-8"
+                >
+                  {stations.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+                
               </div>
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700">
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">

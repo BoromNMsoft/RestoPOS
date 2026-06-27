@@ -98,6 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensureProfile();
         profile = await fetchProfile(s.user.id);
       }
+
+      // Mémorise le resto pour personnaliser le prochain écran de login
+      if (profile?.restaurantName) {
+        try {
+          localStorage.setItem('lastResto', JSON.stringify({
+            name: profile.restaurantName,
+            logo: profile.restaurantLogo ?? null,
+          }));
+        } catch { /* localStorage indisponible, on ignore */ }
+      }
+
       return {
         user: s.user,
         role: profile?.role ?? 'cashier',

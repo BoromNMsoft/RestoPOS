@@ -17,11 +17,13 @@ import CashClosure from './components/CashClosure';
 import OrderModal from './components/OrderModal';
 import OrdersView from './components/OrdersView';
 import { Navigate } from 'react-router-dom';
+import OrderTicketModal from './components/Orderticketmodal';
 
 function AppContent() {
   const { authUser, loading: authLoading, signOut: authSignOut } = useAuth();
 
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderTicket, setOrderTicket] = useState<Order | null>(null);
 
   const signOut = useCallback(async () => {
     setCurrentView('pos'); // ← reset la vue avant déconnexion
@@ -128,6 +130,11 @@ function AppContent() {
 
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0), [cart]);
 
+  const activeOrdersCount = useMemo(
+    () => orders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status)).length,
+    [orders]
+  );
+
   const addToCart = useCallback((product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
@@ -166,9 +173,14 @@ function AppContent() {
 
   const clearCart = useCallback(() => setCart([]), []);
 
-  const handleCheckout = useCallback(async (amountReceived: number, changeGiven: number, method: 'cash' | 'card' = 'cash', note: string = '') => {
+ const handleCheckout = useCallback(async (
+    amountReceived: number,
+    changeGiven: number,
+    method: 'cash' | 'card' = 'cash',
+    note: string = '',
+    orderType: 'dine_in' | 'takeaway' = 'dine_in'   // ← nouveau paramètre
+  ) => {
     if (cart.length === 0) return;
-
     try {
       const { data: sale, error: saleError } = await supabase
         .from('sales')
@@ -176,8 +188,10 @@ function AppContent() {
           total: cartTotal,
           amount_received: amountReceived,
           change_given: changeGiven,
-          payment_method: method,  // ← utilise method
-          note: note || null,       // ← ajoute la note
+          payment_method: method,
+          note: note || null,
+          order_type: orderType,        // ← type de service choisi
+          is_from_order: false,         // ← vente directe au comptoir
           cashier_id: authUser?.user.id,
           cashier_name: authUser?.fullName,
           station_id: authUser?.stationId,
@@ -185,7 +199,6 @@ function AppContent() {
         })
         .select()
         .single();
-
       if (saleError) throw saleError;
 
       const saleItems = cart.map(item => ({
@@ -196,7 +209,6 @@ function AppContent() {
         unit_price: item.product.price,
         subtotal: item.product.price * item.quantity,
       }));
-
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
       if (itemsError) throw itemsError;
 
@@ -211,7 +223,6 @@ function AppContent() {
         ...sale,
         items: saleItems.map((si, i) => ({ id: `${sale.id}-${i}`, ...si })),
       };
-
       setReceiptSale(completedSale);
       setCart([]);
       fetchData();
@@ -262,6 +273,13 @@ function AppContent() {
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
 
+      // Construit la commande complète pour le bon de commande
+      const completedOrder: Order = {
+        ...order,
+        items: orderItems.map((oi, i) => ({ id: `${order.id}-${i}`, ...oi })),
+      };
+      setOrderTicket(completedOrder);   // ← affiche le bon de commande
+
       setCart([]);
       setShowOrderModal(false);
     } catch (e) {
@@ -271,64 +289,73 @@ function AppContent() {
   }, [cart, cartTotal, authUser, fetchData]);
 
 
-  const handleCheckoutOrder = useCallback(async (order: Order, method: 'cash' | 'card') => {
-    try {
-      // 1. Crée la vente (montant = total, pas de monnaie)
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .insert({
-          total: order.total,
-          amount_received: order.total,
-          change_given: 0,
-          payment_method: method,
-          note: order.note || null,
-          cashier_id: authUser?.user.id,
-          cashier_name: authUser?.fullName,
-          station_id: authUser?.stationId,
-          station_name: authUser?.stationName,
-        })
-        .select()
-        .single();
-      if (saleError) throw saleError;
+ const handleCheckoutOrder = useCallback(async (order: Order, method: 'cash' | 'card') => {
+  try {
+    // 1. Crée la vente (montant = total, pas de monnaie)
+    const { data: sale, error: saleError } = await supabase
+      .from('sales')
+      .insert({
+        total: order.total,
+        amount_received: order.total,
+        change_given: 0,
+        payment_method: method,
+        note: order.note || null,
+        order_type: order.order_type,   // ← type de la commande (peut être livraison)
+        is_from_order: true,            // ← vient d'une commande
+        cashier_id: authUser?.user.id,
+        cashier_name: authUser?.fullName,
+        station_id: authUser?.stationId,
+        station_name: authUser?.stationName,
+      })
+      .select()
+      .single();
+    if (saleError) throw saleError;
 
-      // 2. Copie les articles de la commande vers la vente
-      const saleItems = (order.items ?? []).map(item => ({
-        sale_id: sale.id,
-        product_id: item.product_id,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        subtotal: item.subtotal,
-      }));
-      if (saleItems.length > 0) {
-        const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
-        if (itemsError) throw itemsError;
-      }
-
-      // 3. Décrémente le stock
-      for (const item of order.items ?? []) {
-        if (!item.product_id) continue;
-        const product = products.find(p => p.id === item.product_id);
-        if (product) {
-          await supabase
-            .from('products')
-            .update({ stock: Math.max(0, product.stock - item.quantity) })
-            .eq('id', item.product_id);
-        }
-      }
-
-      /// 4. Relie la commande à la vente (paiement) — SANS changer le statut cuisine
-      await supabase
-        .from('orders')
-        .update({ sale_id: sale.id, updated_at: new Date().toISOString() })
-        .eq('id', order.id);
-
-      fetchData();
-    } catch (e) {
-      console.error('Checkout order error:', e);
-      throw e;
+    // 2. Copie les articles de la commande vers la vente
+    const saleItems = (order.items ?? []).map(item => ({
+      sale_id: sale.id,
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      subtotal: item.subtotal,
+    }));
+    if (saleItems.length > 0) {
+      const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
+      if (itemsError) throw itemsError;
     }
-  }, [authUser, products, fetchData]);
+
+    // 3. Décrémente le stock
+    for (const item of order.items ?? []) {
+      if (!item.product_id) continue;
+      const product = products.find(p => p.id === item.product_id);
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ stock: Math.max(0, product.stock - item.quantity) })
+          .eq('id', item.product_id);
+      }
+    }
+
+    // 4. Relie la commande à la vente (paiement) — SANS changer le statut cuisine
+    await supabase
+      .from('orders')
+      .update({ sale_id: sale.id, updated_at: new Date().toISOString() })
+      .eq('id', order.id);
+
+    // 5. Affiche le reçu de la commande payée
+    const completedSale: Sale = {
+      ...sale,
+      items: saleItems.map((si, i) => ({ id: `${sale.id}-${i}`, ...si })),
+    };
+    setReceiptSale(completedSale);
+
+    fetchData();
+  } catch (e) {
+    console.error('Checkout order error:', e);
+    throw e;
+  }
+}, [authUser, products, fetchData]);
 
   if (authLoading) {
     return (
@@ -415,6 +442,7 @@ function AppContent() {
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(d => !d)}
         cartCount={cart.reduce((s, i) => s + i.quantity, 0)}
+        ordersCount={activeOrdersCount}   // ← ajoute
         onSignOut={signOut}
         restaurantName={authUser.restaurantName}   // ← ajoute
         restaurantLogo={authUser.restaurantLogo}   // ← ajoute
@@ -491,6 +519,14 @@ function AppContent() {
         <ReceiptModal
           sale={receiptSale}
           onClose={() => setReceiptSale(null)}
+          restaurantName={authUser.restaurantName}
+          restaurantLogo={authUser.restaurantLogo}
+        />
+      )}
+      {orderTicket && (
+        <OrderTicketModal
+          order={orderTicket}
+          onClose={() => setOrderTicket(null)}
           restaurantName={authUser.restaurantName}
           restaurantLogo={authUser.restaurantLogo}
         />

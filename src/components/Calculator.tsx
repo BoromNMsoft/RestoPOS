@@ -1,20 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingBag, CreditCard, Banknote, FileText, ClipboardList } from 'lucide-react';
+import { ShoppingBag, CreditCard, Banknote, FileText, ClipboardList, Store } from 'lucide-react';
 
 type PaymentMethod = 'cash' | 'card';
+type ServiceType = 'dine_in' | 'takeaway';
 
 interface CalculatorProps {
   total: number;
-  onCashCheckout: (amountReceived: number, change: number, method: PaymentMethod, note: string) => void;
+  onCashCheckout: (amountReceived: number, change: number, method: PaymentMethod, note: string, orderType: ServiceType) => void;
   onNewOrder: () => void;
   disabled: boolean;
 }
 
 
-export default function Calculator({ total, onCashCheckout, onNewOrder, disabled }: CalculatorProps) {  const [display, setDisplay] = useState('0');
+export default function Calculator({ total, onCashCheckout, onNewOrder, disabled }: CalculatorProps) {
+  const [display, setDisplay] = useState('0');
   const [change, setChange] = useState<number | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [serviceType, setServiceType] = useState<ServiceType>('dine_in');
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
   const lastActivityRef = useRef<number>(Date.now());
@@ -47,6 +50,7 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
       setNote('');
       setShowNote(false);
       setPaymentMethod('cash');
+      setServiceType('dine_in');
     }
   }, [disabled, showCalculator]);
 
@@ -109,9 +113,9 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
     if (paymentMethod === 'cash') {
       const received = parseFloat(display);
       if (received < total || isNaN(received)) return;
-      onCashCheckout(received, received - total, 'cash', note);
+      onCashCheckout(received, received - total, 'cash', note, serviceType);
     } else {
-      onCashCheckout(total, 0, 'card', note);
+      onCashCheckout(total, 0, 'card', note, serviceType);
     }
     setDisplay('0');
     setChange(null);
@@ -119,6 +123,7 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
     setShowNote(false);
     setShowCalculator(false);
     setPaymentMethod('cash');
+    setServiceType('dine_in');
   };
 
   const amount = parseFloat(display) || 0;
@@ -185,6 +190,30 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
           }`}
         >
           <CreditCard size={16} /> Carte
+        </button>
+      </div>
+
+      {/* Sélecteur type de service */}
+      <div className="px-3 pt-1 pb-1 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setServiceType('dine_in')}
+          className={`flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition-all ${
+            serviceType === 'dine_in'
+              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+          }`}
+        >
+          <Store size={16} /> Sur place
+        </button>
+        <button
+          onClick={() => setServiceType('takeaway')}
+          className={`flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition-all ${
+            serviceType === 'takeaway'
+              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+          }`}
+        >
+          <ShoppingBag size={16} /> À emporter
         </button>
       </div>
 
