@@ -51,7 +51,9 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: bold;
+            -webkit-font-smoothing: none;
             background: #fff;
             color: #000;
             padding: 24px 20px;
