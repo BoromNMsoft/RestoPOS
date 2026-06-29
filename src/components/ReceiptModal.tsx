@@ -50,9 +50,11 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
 
           body {
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: bold;
+            -webkit-font-smoothing: none;
             background: #fff;
-            color: #111;
+            color: #000;
             padding: 24px 20px;
             max-width: 380px;
             margin: 0 auto;
@@ -84,11 +86,12 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           .header .ref {
             display: inline-block;
             margin-top: 6px;
-            background: #111;
-            color: #fff;
+            background: #fff;
+            color: #000;
+            border: 1.5px solid #000;
             padding: 2px 10px;
             border-radius: 20px;
-            font-size: 10px;
+            font-size: 11px;
             letter-spacing: 1px;
           }
 
