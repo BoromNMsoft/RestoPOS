@@ -179,6 +179,11 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           @media print {
             body { padding: 0; }
             @page { margin: 10mm; }
+            * {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
           }
         </style>
       </head>
