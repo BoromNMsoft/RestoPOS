@@ -53,7 +53,7 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
             font-family: 'Courier New', monospace;
             font-size: 12px;
             background: #fff;
-            color: #111;
+            color: #000;
             padding: 24px 20px;
             max-width: 380px;
             margin: 0 auto;
@@ -69,7 +69,7 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
           .badge-order {
             display: inline-block;
             margin: 8px 0 4px;
-            background: #111;
+            background: #000;
             color: #fff;
             padding: 4px 14px;
             border-radius: 4px;
@@ -78,41 +78,42 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
             letter-spacing: 2px;
             text-transform: uppercase;
           }
-          .header .meta { margin-top: 8px; font-size: 11px; color: #444; }
+          .header .meta { margin-top: 8px; font-size: 11px; color: #000; }
           .header .ref {
             display: inline-block;
             margin-top: 6px;
-            background: #f3f4f6;
-            border: 1px solid #ccc;
+            background: #fff;
+            border: 1px solid #000;
             padding: 2px 10px;
             border-radius: 20px;
             font-size: 10px;
             letter-spacing: 1px;
+            color: #000;
           }
           .info-block {
             margin: 10px 0;
             padding: 10px;
-            background: #f9fafb;
-            border: 1px dashed #ccc;
+            background: #fff;
+            border: 1px dashed #000;
             border-radius: 6px;
             font-size: 12px;
           }
           .info-row { display: flex; justify-content: space-between; padding: 2px 0; }
-          .info-row .label { color: #666; }
-          .info-row .value { font-weight: bold; }
-          .sep-solid { border: none; border-top: 1.5px solid #111; margin: 12px 0; }
-          .sep-dash  { border: none; border-top: 1px dashed #aaa; margin: 10px 0; }
+          .info-row .label { color: #000; }
+          .info-row .value { font-weight: bold; color: #000; }
+          .sep-solid { border: none; border-top: 1.5px solid #000; margin: 12px 0; }
+          .sep-dash  { border: none; border-top: 1px dashed #000; margin: 10px 0; }
           table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-          thead tr { border-bottom: 1px solid #ddd; }
+          thead tr { border-bottom: 1px solid #000; }
           thead td {
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #888;
+            color: #000;
             padding-bottom: 6px;
           }
-          tbody tr td { padding: 5px 0; vertical-align: top; }
-          tbody tr:not(:last-child) td { border-bottom: 1px dotted #eee; }
+          tbody tr td { padding: 5px 0; vertical-align: top; color: #000; }
+          tbody tr:not(:last-child) td { border-bottom: 1px dotted #000; }
           .center { text-align: center; }
           .right { text-align: right; }
           .total-row {
@@ -120,31 +121,27 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
             justify-content: space-between;
             font-size: 15px;
             font-weight: 900;
+            color: #000;
             padding-top: 8px;
             margin-top: 4px;
-            border-top: 1.5px solid #111;
+            border-top: 1.5px solid #000;
           }
           .footer {
             text-align: center;
             margin-top: 16px;
             font-size: 10px;
-            color: #999;
+            color: #000;
             letter-spacing: 0.5px;
           }
           .footer .note-pay {
             font-size: 11px;
-            color: #b45309;
+            color: #000;
             font-weight: bold;
             margin-bottom: 6px;
           }
           @media print {
             body { padding: 0; }
             @page { margin: 10mm; }
-            * {
-              color: #000 !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
           }
         </style>
       </head>
@@ -191,8 +188,8 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
         ${order.note ? `
           <hr class="sep-dash" />
           <div style="margin: 8px 0;">
-            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px;">Note</div>
-            <div style="font-size: 12px; color: #111; font-style: italic;">${order.note}</div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #000; margin-bottom: 4px;">Note</div>
+            <div style="font-size: 12px; color: #000; font-style: italic;">${order.note}</div>
           </div>
         ` : ''}
 

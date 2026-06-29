@@ -72,14 +72,14 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           }
           .header .tagline {
             font-size: 10px;
-            color: #666;
+            color: #000;
             letter-spacing: 1px;
             text-transform: uppercase;
           }
           .header .meta {
             margin-top: 8px;
             font-size: 11px;
-            color: #444;
+            color: #000;
           }
           .header .ref {
             display: inline-block;
@@ -94,7 +94,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
 
           /* ── Séparateurs ── */
           .sep-solid { border: none; border-top: 1.5px solid #111; margin: 12px 0; }
-          .sep-dash  { border: none; border-top: 1px dashed #aaa; margin: 10px 0; }
+          .sep-dash  { border: none; border-top: 1px dashed #000; margin: 10px 0; }
 
           /* ── Table articles ── */
           table {
@@ -103,13 +103,13 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
             margin: 8px 0;
           }
           thead tr {
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #000;
           }
           thead td {
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #888;
+            color: #000;
             padding-bottom: 6px;
           }
           tbody tr td {
@@ -121,7 +121,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           }
           .col-name  { width: 45%; }
           .col-qty   { width: 10%; text-align: center; }
-          .col-price { width: 20%; text-align: right; color: #555; }
+          .col-price { width: 20%; text-align: right; color: #000; }
           .col-total { width: 25%; text-align: right; font-weight: bold; }
           .center { text-align: center; }
           .right { text-align: right; }
@@ -133,7 +133,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
             justify-content: space-between;
             padding: 3px 0;
             font-size: 12px;
-            color: #444;
+            color: #000;
           }
           .summary-row.total {
             font-size: 15px;
@@ -164,7 +164,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
             text-align: center;
             margin-top: 16px;
             font-size: 10px;
-            color: #999;
+            color: #000;
             letter-spacing: 0.5px;
           }
           .footer .thanks {
@@ -179,11 +179,6 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
           @media print {
             body { padding: 0; }
             @page { margin: 10mm; }
-            * {
-                color: #000 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
           }
         </style>
       </head>
@@ -244,7 +239,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
 
         ${sale.note ? `
           <div style="margin: 8px 0 12px 0;">
-            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px;">Note</div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #000; margin-bottom: 4px;">Note</div>
             <div style="font-size: 12px; color: #111; font-style: italic;">${sale.note}</div>
           </div>
           <hr class="sep-dash" />
