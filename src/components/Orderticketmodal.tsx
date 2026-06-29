@@ -140,6 +140,11 @@ export default function OrderTicketModal({ order, onClose, restaurantName, resta
           @media print {
             body { padding: 0; }
             @page { margin: 10mm; }
+            * {
+              color: #000 !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
           }
         </style>
       </head>
