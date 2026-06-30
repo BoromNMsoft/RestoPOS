@@ -1,22 +1,34 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingBag, CreditCard, Banknote, FileText, ClipboardList, Store } from 'lucide-react';
+import { ShoppingBag, Smartphone, Banknote, FileText, ClipboardList, Store, ChevronDown } from 'lucide-react';
+import { PaymentProvider, PAYMENT_PROVIDER_LABELS } from '../types';
 
-type PaymentMethod = 'cash' | 'card';
+type PaymentMethod = 'cash' | 'mobile';
 type ServiceType = 'dine_in' | 'takeaway';
 
 interface CalculatorProps {
   total: number;
-  onCashCheckout: (amountReceived: number, change: number, method: PaymentMethod, note: string, orderType: ServiceType) => void;
+  onCashCheckout: (
+    amountReceived: number,
+    change: number,
+    method: PaymentMethod,
+    note: string,
+    orderType: ServiceType,
+    provider: PaymentProvider | null
+  ) => void;
   onNewOrder: () => void;
   disabled: boolean;
 }
 
+const PROVIDERS: PaymentProvider[] = ['bankily', 'masrvi', 'sedad'];
 
 export default function Calculator({ total, onCashCheckout, onNewOrder, disabled }: CalculatorProps) {
   const [display, setDisplay] = useState('0');
   const [change, setChange] = useState<number | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [provider, setProvider] = useState<PaymentProvider | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const [serviceType, setServiceType] = useState<ServiceType>('dine_in');
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
@@ -50,23 +62,37 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
       setNote('');
       setShowNote(false);
       setPaymentMethod('cash');
+      setProvider(null);
       setServiceType('dine_in');
     }
   }, [disabled, showCalculator]);
 
-  // En mode CB, le montant reçu = total automatiquement
+  // Ferme le menu mobile au clic extérieur
   useEffect(() => {
-    if (paymentMethod === 'card') {
+    if (!mobileMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [mobileMenuOpen]);
+
+  // En mode Mobile, le montant reçu = total automatiquement (pas de monnaie)
+  useEffect(() => {
+    if (paymentMethod === 'mobile') {
       setDisplay(total.toFixed(2));
       setChange(0);
     } else {
       setDisplay('0');
       setChange(null);
+      setProvider(null);
     }
   }, [paymentMethod, total]);
 
   const handleDigit = (digit: string) => {
-    if (disabled || paymentMethod === 'card') return;
+    if (disabled || paymentMethod === 'mobile') return;
     handleActivity();
     setDisplay(prev => {
       const next = prev === '0' ? digit : prev + digit;
@@ -77,14 +103,14 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
   };
 
   const handleClear = () => {
-    if (paymentMethod === 'card') return;
+    if (paymentMethod === 'mobile') return;
     handleActivity();
     setDisplay('0');
     setChange(null);
   };
 
   const handleBackspace = () => {
-    if (paymentMethod === 'card') return;
+    if (paymentMethod === 'mobile') return;
     handleActivity();
     setDisplay(prev => {
       const next = prev.length <= 1 ? '0' : prev.slice(0, -1);
@@ -95,17 +121,25 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
   };
 
   const handleQuickAmount = (amount: number) => {
-    if (disabled || paymentMethod === 'card') return;
+    if (disabled || paymentMethod === 'mobile') return;
     handleActivity();
     setDisplay(amount.toString());
     setChange(amount >= total ? amount - total : null);
   };
 
   const handleExactAmount = () => {
-    if (disabled || paymentMethod === 'card') return;
+    if (disabled || paymentMethod === 'mobile') return;
     handleActivity();
     setDisplay(total.toFixed(2));
     setChange(0);
+  };
+
+  // Sélection d'un provider mobile via le menu custom
+  const selectProvider = (p: PaymentProvider) => {
+    handleActivity();
+    setPaymentMethod('mobile');
+    setProvider(p);
+    setMobileMenuOpen(false);
   };
 
   const handleCheckout = () => {
@@ -113,9 +147,10 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
     if (paymentMethod === 'cash') {
       const received = parseFloat(display);
       if (received < total || isNaN(received)) return;
-      onCashCheckout(received, received - total, 'cash', note, serviceType);
+      onCashCheckout(received, received - total, 'cash', note, serviceType, null);
     } else {
-      onCashCheckout(total, 0, 'card', note, serviceType);
+      if (!provider) return;
+      onCashCheckout(total, 0, 'mobile', note, serviceType, provider);
     }
     setDisplay('0');
     setChange(null);
@@ -123,12 +158,13 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
     setShowNote(false);
     setShowCalculator(false);
     setPaymentMethod('cash');
+    setProvider(null);
     setServiceType('dine_in');
   };
 
   const amount = parseFloat(display) || 0;
   const canCheckout = !disabled && total > 0 && (
-    paymentMethod === 'card' || (amount >= total)
+    paymentMethod === 'mobile' ? !!provider : (amount >= total)
   );
 
   const buttons = [
@@ -169,10 +205,10 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
   return (
     <div className="flex flex-col border-t border-gray-100 dark:border-gray-800">
 
-      {/* Sélecteur mode paiement */}
+      {/* Sélecteur mode paiement : Espèces | Mobile ▾ */}
       <div className="px-3 pt-3 pb-1 grid grid-cols-2 gap-2">
         <button
-          onClick={() => setPaymentMethod('cash')}
+          onClick={() => { setPaymentMethod('cash'); setProvider(null); }}
           className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
             paymentMethod === 'cash'
               ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
@@ -181,16 +217,41 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
         >
           <Banknote size={16} /> Espèces
         </button>
-        <button
-          onClick={() => setPaymentMethod('card')}
-          className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            paymentMethod === 'card'
-              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
-          }`}
-        >
-          <CreditCard size={16} /> Carte
-        </button>
+
+        {/* Bouton Mobile avec menu déroulant custom */}
+        <div className="relative" ref={mobileMenuRef}>
+          <button
+            onClick={() => { handleActivity(); setMobileMenuOpen(o => !o); }}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              paymentMethod === 'mobile'
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+            }`}
+          >
+            <Smartphone size={16} />
+            {paymentMethod === 'mobile' && provider ? PAYMENT_PROVIDER_LABELS[provider] : 'Mobile'}
+            <ChevronDown size={14} className={`transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {mobileMenuOpen && (
+            <div className="absolute bottom-full mb-2 left-0 right-0 z-20 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden animate-fade-in">
+              {PROVIDERS.map(p => (
+                <button
+                  key={p}
+                  onClick={() => selectProvider(p)}
+                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    provider === p
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <Smartphone size={14} />
+                  {PAYMENT_PROVIDER_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sélecteur type de service */}
@@ -222,10 +283,10 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-              {paymentMethod === 'card' ? 'Paiement CB' : 'Montant reçu'}
+              {paymentMethod === 'mobile' ? 'Paiement mobile' : 'Montant reçu'}
             </p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white tabular-nums">
-              {paymentMethod === 'card' ? `${total.toFixed(2)} MRU` : `${display} MRU`}
+              {paymentMethod === 'mobile' ? `${total.toFixed(2)} MRU` : `${display} MRU`}
             </p>
           </div>
           {paymentMethod === 'cash' && change !== null && (
@@ -234,9 +295,9 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{change.toFixed(2)} MRU</p>
             </div>
           )}
-          {paymentMethod === 'card' && (
+          {paymentMethod === 'mobile' && (
             <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-              <CreditCard size={20} className="text-blue-500" />
+              <Smartphone size={20} className="text-blue-500" />
             </div>
           )}
         </div>
@@ -278,14 +339,14 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
         </>
       )}
 
-      {/* Mode CB — message simple */}
-      {paymentMethod === 'card' && (
+      {/* Mode mobile — confirmation provider */}
+      {paymentMethod === 'mobile' && (
         <div className="px-4 py-4 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Présentez la carte au terminal de paiement
+          <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold">
+            Paiement via {provider ? PAYMENT_PROVIDER_LABELS[provider] : '—'}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            Confirmez après validation du terminal
+            Confirmez après réception du paiement
           </p>
         </div>
       )}
@@ -317,14 +378,16 @@ export default function Calculator({ total, onCashCheckout, onNewOrder, disabled
           disabled={!canCheckout}
           className={`w-full py-3.5 rounded-xl text-base font-bold transition-all duration-200 shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 ${
             canCheckout
-              ? paymentMethod === 'card'
+              ? paymentMethod === 'mobile'
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/25 hover:shadow-blue-500/40'
                 : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-amber-500/25 hover:shadow-amber-500/40 hover:from-amber-600 hover:to-orange-600'
               : 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 shadow-none cursor-not-allowed'
           }`}
         >
-          {paymentMethod === 'card' ? <CreditCard size={18} /> : <Banknote size={18} />}
-          {paymentMethod === 'card' ? `CB · ${total.toFixed(2)} MRU` : `Encaisser ${total > 0 ? `${total.toFixed(2)} MRU` : ''}`}
+          {paymentMethod === 'mobile' ? <Smartphone size={18} /> : <Banknote size={18} />}
+          {paymentMethod === 'mobile'
+            ? `${provider ? PAYMENT_PROVIDER_LABELS[provider] : 'Mobile'} · ${total.toFixed(2)} MRU`
+            : `Encaisser ${total > 0 ? `${total.toFixed(2)} MRU` : ''}`}
         </button>
       </div>
     </div>

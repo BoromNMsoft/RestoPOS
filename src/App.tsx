@@ -174,31 +174,34 @@ function AppContent() {
   const clearCart = useCallback(() => setCart([]), []);
 
  const handleCheckout = useCallback(async (
-    amountReceived: number,
-    changeGiven: number,
-    method: 'cash' | 'card' = 'cash',
-    note: string = '',
-    orderType: 'dine_in' | 'takeaway' = 'dine_in'   // ← nouveau paramètre
-  ) => {
-    if (cart.length === 0) return;
-    try {
-      const { data: sale, error: saleError } = await supabase
-        .from('sales')
-        .insert({
-          total: cartTotal,
-          amount_received: amountReceived,
-          change_given: changeGiven,
-          payment_method: method,
-          note: note || null,
-          order_type: orderType,        // ← type de service choisi
-          is_from_order: false,         // ← vente directe au comptoir
-          cashier_id: authUser?.user.id,
-          cashier_name: authUser?.fullName,
-          station_id: authUser?.stationId,
-          station_name: authUser?.stationName,
-        })
-        .select()
-        .single();
+  amountReceived: number,
+  changeGiven: number,
+  method: 'cash' | 'mobile' = 'cash',
+  note: string = '',
+  orderType: 'dine_in' | 'takeaway' = 'dine_in',
+  provider: 'bankily' | 'masrvi' | 'sedad' | null = null   // ← ajoute
+) => {
+  if (cart.length === 0) return;
+  try {
+    const { data: sale, error: saleError } = await supabase
+      .from('sales')
+      .insert({
+        total: cartTotal,
+        amount_received: amountReceived,
+        change_given: changeGiven,
+        payment_method: method,
+        payment_provider: provider,    // ← ajoute
+        note: note || null,
+        order_type: orderType,
+        is_from_order: false,
+        cashier_id: authUser?.user.id,
+        cashier_name: authUser?.fullName,
+        station_id: authUser?.stationId,
+        station_name: authUser?.stationName,
+      })
+      .select()
+      .single();
+    // ... reste inchangé
       if (saleError) throw saleError;
 
       const saleItems = cart.map(item => ({
