@@ -24,12 +24,22 @@ export interface CartItem {
   quantity: number;
 }
 
+// ── Paiements ──────────────────────────────────────────────
+export type PaymentProvider = 'bankily' | 'masrvi' | 'sedad';
+
+export const PAYMENT_PROVIDER_LABELS: Record<PaymentProvider, string> = {
+  bankily: 'Bankily',
+  masrvi: 'Masrvi',
+  sedad: 'Sedad',
+};
+
 export interface Sale {
   id: string;
   total: number;
   amount_received: number;
   change_given: number;
   payment_method: string;
+  payment_provider?: PaymentProvider | null;
   created_at: string;
   cashier_id?: string;
   cashier_name?: string;
@@ -52,10 +62,8 @@ export interface SaleItem {
 }
 
 // ── Commandes ──────────────────────────────────────────────
-
 export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'completed' | 'cancelled';
-
 
 export interface Order {
   id: string;
@@ -70,7 +78,7 @@ export interface Order {
   cashier_name?: string | null;
   station_id?: string | null;
   station_name?: string | null;
-  cancel_reason?: string | null;   // ← ajoute
+  cancel_reason?: string | null;
   sale_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -88,11 +96,9 @@ export interface OrderItem {
 }
 
 // ── Vues ───────────────────────────────────────────────────
-
 export type ViewType = 'pos' | 'dashboard' | 'products' | 'settings' | 'history' | 'closure' | 'orders';
 
 // ── Helpers ────────────────────────────────────────────────
-
 export const formatSaleId = (sale: { id: string; station_name?: string | null }) => {
   const shortId = sale.id.slice(0, 8).toUpperCase();
   if (!sale.station_name) return `#${shortId}`;
@@ -116,3 +122,12 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'Annulée',
 };
 
+// Libellé du moyen de paiement d'une vente (gère cash, mobile+provider, et l'ancien 'card')
+export const getPaymentLabel = (sale: { payment_method: string; payment_provider?: PaymentProvider | null }): string => {
+  if (sale.payment_method === 'cash') return 'Espèces';
+  if (sale.payment_method === 'mobile' && sale.payment_provider) {
+    return PAYMENT_PROVIDER_LABELS[sale.payment_provider];
+  }
+  if (sale.payment_method === 'card') return 'Carte'; // historique
+  return 'Mobile';
+};

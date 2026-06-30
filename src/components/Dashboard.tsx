@@ -1,8 +1,8 @@
-import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X, Monitor, User, ClipboardList, Store, Bike, Ban, Phone } from 'lucide-react';
-import { Sale, Order, OrderType, OrderStatus, ORDER_TYPE_LABELS } from '../types';
+import { TrendingUp, ShoppingBag, Clock, Euro, ArrowUpRight, ArrowDownRight, ShieldAlert, X, Monitor, User, ClipboardList, Store, Bike, Ban, Phone, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { formatSaleId } from '../types';
+import { Sale, Order, OrderType, OrderStatus, ORDER_TYPE_LABELS, getPaymentLabel, PAYMENT_PROVIDER_LABELS } from '../types';
 
 interface DashboardProps {
   sales: Sale[];
@@ -95,6 +95,33 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
 
     return { activeCount, unpaidActive, total, cancelled, cancelRate, paidCount, byType, typeMax, orderRevenue, directRevenue, revenueTotal, orderPct };
   }, [orders, filteredOrders, filteredSales]);
+
+  const paymentStats = useMemo(() => {
+    const byMethod: Record<string, { label: string; total: number; count: number }> = {};
+
+    filteredSales.forEach(s => {
+      // Clé = provider si mobile, sinon la méthode
+      let key: string;
+      let label: string;
+      if (s.payment_method === 'cash') {
+        key = 'cash'; label = 'Espèces';
+      } else if (s.payment_method === 'mobile' && s.payment_provider) {
+        key = s.payment_provider; label = PAYMENT_PROVIDER_LABELS[s.payment_provider];
+      } else if (s.payment_method === 'card') {
+        key = 'card'; label = 'Carte';
+      } else {
+        key = 'mobile'; label = 'Mobile';
+      }
+      if (!byMethod[key]) byMethod[key] = { label, total: 0, count: 0 };
+      byMethod[key].total += s.total;
+      byMethod[key].count += 1;
+    });
+
+    const list = Object.values(byMethod).sort((a, b) => b.total - a.total);
+    const grandTotal = list.reduce((sum, m) => sum + m.total, 0);
+
+    return { list, grandTotal };
+  }, [filteredSales]);
 
   const recentSales = useMemo(() => {
     return [...filteredSales]
@@ -361,6 +388,38 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
           </div>
         </div>
 
+        {/* Répartition par moyen de paiement */}
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet size={16} className="text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Répartition par moyen de paiement</h3>
+          </div>
+          {paymentStats.list.length > 0 ? (
+            <div className="space-y-3">
+              {paymentStats.list.map(m => {
+                const pct = paymentStats.grandTotal > 0 ? (m.total / paymentStats.grandTotal) * 100 : 0;
+                return (
+                  <div key={m.label}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{m.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{m.count} vente(s)</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">{m.total.toFixed(2)} MRU</span>
+                        <span className="text-xs text-gray-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">Aucune vente pour cette période</p>
+          )}
+        </div>
+
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
@@ -521,8 +580,8 @@ export default function Dashboard({ sales, stations, orders }: DashboardProps) {
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Paiement</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Moyen de paiement</span>
-                  <span className="font-semibold text-gray-900 dark:text-white capitalize">
-                    {selectedSale.payment_method === 'cash' ? '💵 Espèces' : '💳 Carte'}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {selectedSale.payment_method === 'cash' ? '💵' : '💳'} {getPaymentLabel(selectedSale)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

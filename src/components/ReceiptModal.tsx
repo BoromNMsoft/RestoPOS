@@ -1,5 +1,5 @@
 import { X, Printer, Check } from 'lucide-react';
-import { Sale, SaleItem, formatSaleId, ORDER_TYPE_LABELS, OrderType } from '../types';
+import { Sale, SaleItem, formatSaleId, ORDER_TYPE_LABELS, OrderType, getPaymentLabel } from '../types';
 import { useEffect, useRef } from 'react';
 
 interface ReceiptModalProps {
@@ -222,7 +222,7 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
         <div class="summary">
           <div class="summary-row">
             <span>Paiement</span>
-            <span class="badge-payment">${sale.payment_method === 'cash' ? 'Espèces' : 'Carte'}</span>
+            <span class="badge-payment">${getPaymentLabel(sale)}</span>
           </div>
           <div class="summary-row">
             <span>Montant reçu</span>
