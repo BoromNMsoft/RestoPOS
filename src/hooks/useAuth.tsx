@@ -9,6 +9,7 @@ export interface AuthUser {
   role: UserRole;
   fullName: string;
   phone?: string;           // ← ajouté
+  restaurantId?: string | null;   // ← ajoute
   restaurantName?: string;        // ← ajoute
   restaurantLogo?: string | null; // ← ajoute
   restaurantSuspended?: boolean;  // ← ajoute
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: data.role as UserRole,
       fullName: data.full_name,
       phone: data.phone ?? undefined,  // ← ajoute
+      restaurantId: data.restaurant_id ?? null,   // ← ajoute
       restaurantName,   // ←
       restaurantLogo,   // ←
       restaurantSuspended,  // ← ajoute
@@ -114,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? 'cashier',
         fullName: profile?.fullName ?? s.user.email ?? 'Utilisateur',
         phone: profile?.phone ?? undefined,  // ← ajoute
+        restaurantId: profile?.restaurantId ?? null,   // ← ajoute
         restaurantName: profile?.restaurantName ?? undefined,   // ← ajoute
         restaurantLogo: profile?.restaurantLogo ?? null,        // ← ajoute
         restaurantSuspended: profile?.restaurantSuspended ?? false,  // ← celui-ci est souvent oublié
