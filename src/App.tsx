@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './lib/supabase';
-import { Product, Category, CartItem, Sale, ViewType, OrderType, Order } from './types';
+import { Product, Category, CartItem, Sale, ViewType, OrderType, Order, PaymentProvider } from './types';
 import { useAuth } from './hooks/useAuth';
 import Header from './components/Header';
 import ProductGrid from './components/ProductGrid';
@@ -211,6 +211,7 @@ function AppContent() {
         quantity: item.quantity,
         unit_price: item.product.price,
         subtotal: item.product.price * item.quantity,
+        restaurant_id: authUser?.restaurantId,   // ← ajoute
       }));
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
       if (itemsError) throw itemsError;
@@ -254,6 +255,7 @@ function AppContent() {
           customer_phone: orderData.customer_phone || null,
           delivery_address: orderData.delivery_address || null,
           note: orderData.note || null,
+          restaurant_id: authUser?.restaurantId,   // ← ajoute
           cashier_id: authUser?.user.id,
           cashier_name: authUser?.fullName,
           station_id: authUser?.stationId,
@@ -271,6 +273,7 @@ function AppContent() {
         quantity: item.quantity,
         unit_price: item.product.price,
         subtotal: item.product.price * item.quantity,
+        restaurant_id: authUser?.restaurantId,   // ← AJOUTE CETTE LIGNE
       }));
 
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
@@ -292,7 +295,11 @@ function AppContent() {
   }, [cart, cartTotal, authUser, fetchData]);
 
 
- const handleCheckoutOrder = useCallback(async (order: Order, method: 'cash' | 'card') => {
+ const handleCheckoutOrder = useCallback(async (
+    order: Order,
+    method: 'cash' | 'mobile',
+    provider: PaymentProvider | null = null
+  ) => {
   try {
     // 1. Crée la vente (montant = total, pas de monnaie)
     const { data: sale, error: saleError } = await supabase
@@ -302,9 +309,11 @@ function AppContent() {
         amount_received: order.total,
         change_given: 0,
         payment_method: method,
+        payment_provider: provider,      // ← ajoute
         note: order.note || null,
         order_type: order.order_type,   // ← type de la commande (peut être livraison)
         is_from_order: true,            // ← vient d'une commande
+        restaurant_id: authUser?.restaurantId,   // ← ajoute (le fix RLS)
         cashier_id: authUser?.user.id,
         cashier_name: authUser?.fullName,
         station_id: authUser?.stationId,
@@ -322,6 +331,8 @@ function AppContent() {
       quantity: item.quantity,
       unit_price: item.unit_price,
       subtotal: item.subtotal,
+      restaurant_id: authUser?.restaurantId,   // ← ajoute
+
     }));
     if (saleItems.length > 0) {
       const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);

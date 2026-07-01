@@ -147,7 +147,8 @@ export default function ReceiptModal({ sale, onClose, restaurantName, restaurant
             border-top: 1.5px solid #111;
           }
           .summary-row.change {
-            color: #16a34a;
+            color: #111;
+            font-size: 10px;
             font-weight: 700;
           }
 

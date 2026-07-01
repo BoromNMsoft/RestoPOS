@@ -1,17 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   ClipboardList, Store, ShoppingBag, Bike, Phone, StickyNote, Clock,
-  ChefHat, CheckCircle2, CreditCard, Banknote, X, ArrowRight, Search,
-  CircleDollarSign, PackageCheck, Ban,
+  ChefHat, CheckCircle2, Smartphone, Banknote, X, ArrowRight, Search,
+  CircleDollarSign, PackageCheck, Ban, ChevronDown,
 } from 'lucide-react';
 import {
   Order, OrderStatus, OrderType,
   ORDER_TYPE_LABELS, ORDER_STATUS_LABELS,
+  PaymentProvider, PAYMENT_PROVIDER_LABELS,
 } from '../types';
 
 interface OrdersViewProps {
-  onCheckoutOrder: (order: Order, method: 'cash' | 'card') => Promise<void>;
+  onCheckoutOrder: (order: Order, method: 'cash' | 'mobile', provider: PaymentProvider | null) => Promise<void>;
 }
 
 const TYPE_ICON: Record<OrderType, typeof Store> = {
@@ -76,6 +77,8 @@ const TYPE_FILTERS: { value: 'all' | OrderType; label: string }[] = [
   { value: 'delivery', label: 'Livraison' },
 ];
 
+const PROVIDERS: PaymentProvider[] = ['bankily', 'masrvi', 'sedad'];
+
 // Raisons d'annulation prédéfinies
 const CANCEL_REASONS = [
   'Client absent',
@@ -103,7 +106,10 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
 
   // Encaissement
   const [payingOrder, setPayingOrder] = useState<Order | null>(null);
-  const [payMethod, setPayMethod] = useState<'cash' | 'card'>('cash');
+  const [payMethod, setPayMethod] = useState<'cash' | 'mobile'>('cash');
+  const [payProvider, setPayProvider] = useState<PaymentProvider | null>(null);
+  const [payMenuOpen, setPayMenuOpen] = useState(false);
+  const payMenuRef = useRef<HTMLDivElement>(null);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -134,6 +140,18 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchOrders]);
+
+  // Ferme le menu mobile au clic extérieur
+  useEffect(() => {
+    if (!payMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (payMenuRef.current && !payMenuRef.current.contains(e.target as Node)) {
+        setPayMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [payMenuOpen]);
 
   const advanceStatus = async (order: Order) => {
     const next = NEXT_STATUS[order.status];
@@ -183,14 +201,29 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
     }
   };
 
+  const openPay = (order: Order) => {
+    setPayingOrder(order);
+    setPayMethod('cash');
+    setPayProvider(null);
+    setPayMenuOpen(false);
+    setPayError(null);
+  };
+
   const handlePay = async () => {
     if (!payingOrder) return;
+    // En mode mobile, un provider est requis
+    if (payMethod === 'mobile' && !payProvider) {
+      setPayError('Choisissez le service mobile (Bankily, Masrvi ou Sedad).');
+      return;
+    }
     setPaying(true);
     setPayError(null);
     try {
-      await onCheckoutOrder(payingOrder, payMethod);
+      await onCheckoutOrder(payingOrder, payMethod, payMethod === 'mobile' ? payProvider : null);
       setPayingOrder(null);
       setPayMethod('cash');
+      setPayProvider(null);
+      setPayMenuOpen(false);
       fetchOrders();
     } catch (e: any) {
       setPayError(e?.message ?? 'Erreur lors de l\'encaissement.');
@@ -378,10 +411,10 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
 
                       {!isPaid && (
                         <button
-                          onClick={() => { setPayingOrder(order); setPayMethod('cash'); setPayError(null); }}
+                          onClick={() => openPay(order)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold shadow-md shadow-amber-500/25 hover:shadow-amber-500/40 transition-all active:scale-95"
                         >
-                          <CreditCard size={13} /> Encaisser
+                          <CircleDollarSign size={13} /> Encaisser
                         </button>
                       )}
 
@@ -424,7 +457,7 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mode de paiement</label>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => setPayMethod('cash')}
+                    onClick={() => { setPayMethod('cash'); setPayProvider(null); setPayMenuOpen(false); }}
                     className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${
                       payMethod === 'cash'
                         ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 ring-2 ring-amber-400/30'
@@ -433,16 +466,41 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
                   >
                     <Banknote size={16} /> Espèces
                   </button>
-                  <button
-                    onClick={() => setPayMethod('card')}
-                    className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${
-                      payMethod === 'card'
-                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 ring-2 ring-blue-400/30'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <CreditCard size={16} /> Carte
-                  </button>
+
+                  {/* Bouton Mobile avec menu déroulant custom */}
+                  <div className="relative" ref={payMenuRef}>
+                    <button
+                      onClick={() => setPayMenuOpen(o => !o)}
+                      className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                        payMethod === 'mobile'
+                          ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 ring-2 ring-blue-400/30'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <Smartphone size={16} />
+                      {payMethod === 'mobile' && payProvider ? PAYMENT_PROVIDER_LABELS[payProvider] : 'Mobile'}
+                      <ChevronDown size={14} className={`transition-transform ${payMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {payMenuOpen && (
+                      <div className="absolute top-full mt-2 left-0 right-0 z-20 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden animate-fade-in">
+                        {PROVIDERS.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => { setPayMethod('mobile'); setPayProvider(p); setPayMenuOpen(false); }}
+                            className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                              payProvider === p
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            }`}
+                          >
+                            <Smartphone size={14} />
+                            {PAYMENT_PROVIDER_LABELS[p]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -463,7 +521,7 @@ export default function OrdersView({ onCheckoutOrder }: OrdersViewProps) {
               </button>
               <button
                 onClick={handlePay}
-                disabled={paying}
+                disabled={paying || (payMethod === 'mobile' && !payProvider)}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 size={16} />
